@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT
  * Copyright (c) 2026 Edwin (geniuskey) and AIBook contributors
- * See LICENSE for terms.
+ * See LICENSE-MIT for terms.
  */
 /* ==========================================================================
    AIBook 공통 스크립트 — 전역 객체 AB
@@ -531,7 +531,7 @@
     const foot = document.createElement("footer");
     foot.className = "ab-foot";
     foot.innerHTML = `AIBook — 공학도를 위한 인터랙티브 AI 교과서 · 시뮬레이터는 교육용으로 단순화한 모델입니다.
-      <br>© 2026 Edwin (geniuskey) 및 AIBook 기여자 · 코드 <a href="${root}LICENSE">MIT</a> · 교재 내용 <a rel="license" href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>
+      <br>© 2026 Edwin (geniuskey) 및 AIBook 기여자 · 코드 <a href="${root}LICENSE-MIT">MIT</a> · 교재 내용 <a rel="license" href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>
       · <a href="https://github.com/geniuskey/aibook#라이선스">이용·출처 표기 안내</a>`;
     body.appendChild(foot);
 

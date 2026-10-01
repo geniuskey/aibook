@@ -42,7 +42,7 @@ Copyright © 2026 Edwin (geniuskey) 및 AIBook 기여자.
 
 | 적용 대상 | 라이선스 | 이용 조건 |
 |---|---|---|
-| JS·CSS·Python·HTML의 실행 코드 | [MIT](LICENSE) | 수정·재배포·상업적 이용 가능. 저작권 및 라이선스 고지 유지 |
+| JS·CSS·Python·HTML의 실행 코드 | [MIT](LICENSE-MIT) | 수정·재배포·상업적 이용 가능. 저작권 및 라이선스 고지 유지 |
 | 교재 본문·그림·문제·해설 | [CC BY 4.0](LICENSE-CC-BY-4.0) | 수업 자료·번역·상업적 교재에 활용 가능. 저작자·출처·라이선스 표시 및 변경 사실 명시 |
 
 `js/`, `css/`, HTML의 페이지 구조·스크립트·스타일, 교재에 포함된 실행 가능한 코드 예제와 향후 추가되는 Python 코드는 MIT를 적용합니다. 개발·기여 안내인 `README.md`, `CONTRIBUTING.md`도 MIT를 적용합니다.

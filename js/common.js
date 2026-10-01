@@ -23,8 +23,9 @@
     { slug: "generation",   num: "08", title: "토큰 생성과 디코딩",        desc: "로짓→확률, 온도·top-k·top-p, KV 캐시, prefill/decode, 추측 디코딩.", tags: ["추론", "sim"] },
     { slug: "quantization", num: "09", title: "양자화",                  desc: "FP32·BF16·FP8·INT4 비트 구조, 스케일과 영점, 그룹 양자화, 이상치와 GPTQ·AWQ.", tags: ["경량화", "sim"] },
     { slug: "rag",          num: "10", title: "RAG: 검색 증강 생성",       desc: "청킹, 임베딩 검색, 벡터 DB와 HNSW, 리랭킹, 프롬프트 조립. 브라우저 속 미니 RAG.", tags: ["응용", "sim"] },
-    { slug: "design",       num: "11", title: "LLM 서빙 설계 플레이그라운드", desc: "모델 크기·양자화·컨텍스트·배치로 GPU 메모리와 처리량을 설계. 루프라인으로 병목을 찾는다.", tags: ["종합", "sim"] },
-    { slug: "glossary",     num: "12", title: "용어집 & 종합 퀴즈",        desc: "핵심 용어 100여 개를 검색하고, 종합 퀴즈로 실력을 점검하자.", tags: ["정리"] },
+    { slug: "agent",        num: "11", title: "추론 모델과 에이전트",       desc: "RLVR·GRPO로 키운 생각하는 모델, 테스트타임 계산, 도구 호출 루프와 MCP, 컨텍스트 엔지니어링.", tags: ["2026", "sim"] },
+    { slug: "design",       num: "12", title: "LLM 서빙 설계 플레이그라운드", desc: "모델 크기·양자화·컨텍스트·배치로 GPU 메모리와 처리량을 설계. 루프라인으로 병목을 찾는다.", tags: ["종합", "sim"] },
+    { slug: "glossary",     num: "13", title: "용어집 & 종합 퀴즈",        desc: "2026년 동향까지 핵심 용어 170여 개를 검색하고, 24문항 종합 퀴즈로 실력을 점검하자.", tags: ["정리"] },
   ];
 
   const AB = (window.AB = {});

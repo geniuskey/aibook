@@ -14,7 +14,7 @@ https://creativecommons.org/licenses/by/4.0/
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <title>Transformer 블록 · AIBook</title>
-<meta name="description" content="decoder-only Transformer 블록을 해부한다. 위치 인코딩과 RoPE, 잔차 스트림, LayerNorm과 RMSNorm, FFN과 SwiGLU, MoE 라우팅, 그리고 파라미터 수와 FLOPs를 직접 세어 본다.">
+<meta name="description" content="decoder-only Transformer 블록을 해부한다. 위치 인코딩과 RoPE, 잔차 스트림, LayerNorm과 RMSNorm, FFN과 SwiGLU, 세분화 MoE와 부하 균형, MTP와 하이브리드 스택, 그리고 파라미터 수와 FLOPs를 직접 세어 본다.">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
@@ -36,6 +36,7 @@ https://creativecommons.org/licenses/by/4.0/
   .tf-ok { color: var(--ok); font-weight: 600; }
   .tf-warn { color: var(--warn); font-weight: 600; }
   figure.diagram svg text.big { font-size: 15px; }
+  svg .t-sm { fill: var(--text-dim); font-family: var(--font); font-size: 11px; }
   #tf-v3d .overlay-label { font-size: 11px; padding: 1px 6px; }
   #tf-v3d .overlay-label.tf-sel { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-size: 12px; white-space: normal; width: max-content; max-width: 220px; text-align: left; transform: translate(-50%, -130%); }
   #tf-v3d .overlay-label.tf-lay { color: var(--text-dim); font-weight: 500; background: transparent; border-color: transparent; }
@@ -46,13 +47,14 @@ https://creativecommons.org/licenses/by/4.0/
   <header class="chapter-hero">
     <div class="eyebrow">Chapter 06</div>
     <h1>Transformer 블록</h1>
-    <p class="lead"><a href="attention.html">5장</a>의 어텐션은 토큰끼리 정보를 주고받는 장치일 뿐이다. 이것만으로는 언어 모델이 되지 않는다. 순서를 알려 줄 위치 정보, 수십~백여 층을 쌓아도 신호와 기울기가 살아남게 하는 잔차 연결과 정규화, 토큰 하나하나를 깊게 가공하는 FFN이 함께 있어야 한다. 이 장에서는 오늘날 GPT·Llama 계열이 쓰는 decoder-only Transformer 블록을 부품 단위로 뜯어 보고, 마지막에는 Llama 3 8B의 파라미터 80억 개를 직접 한 자리까지 세어 본다.</p>
+    <p class="lead"><a href="attention.html">5장</a>의 어텐션은 토큰끼리 정보를 주고받는 장치일 뿐이다. 이것만으로는 언어 모델이 되지 않는다. 순서를 알려 줄 위치 정보, 수십~백여 층을 쌓아도 신호와 기울기가 살아남게 하는 잔차 연결과 정규화, 토큰 하나하나를 깊게 가공하는 FFN이 함께 있어야 한다. 이 장에서는 GPT·Llama 계열 이후 사실상 모든 LLM의 뼈대가 된 decoder-only Transformer 블록을 부품 단위로 뜯어 보고, 마지막에는 Llama 3 8B의 파라미터 80억 개를 직접 한 자리까지 세어 본다.</p>
     <ul class="objectives">
       <li>원래의 인코더-디코더 Transformer와 오늘날의 decoder-only 구조를 비교하고, 블록 하나의 데이터 흐름(Norm → Attention → +잔차 → Norm → FFN → +잔차)을 그릴 수 있다.</li>
       <li>어텐션이 순서에 무관(permutation equivariant)하다는 사실을 계산으로 확인하고, 사인파 위치 인코딩과 RoPE가 이를 어떻게 깨는지 설명할 수 있다.</li>
       <li>RoPE에서 \(q_m^\top k_n\)이 상대 거리 \(m-n\)에만 의존하는 이유를 회전 행렬로 증명할 수 있다.</li>
       <li>잔차 스트림의 "읽고 더하기" 관점, Pre-norm과 Post-norm의 차이, LayerNorm과 RMSNorm의 수식을 안다.</li>
       <li>FFN·SwiGLU·MoE의 구조와 파라미터 비중을 이해하고, 임의의 설정에서 총 파라미터·토큰당 FLOPs·가중치 메모리를 계산할 수 있다.</li>
+      <li>세분화 MoE·공유 전문가·보조 손실 없는 부하 균형, MTP, 하이브리드 스택을 이해하고 gpt-oss·Qwen3.5·DeepSeek-V4의 설계를 표로 비교할 수 있다.</li>
     </ul>
   </header>
 
@@ -174,7 +176,7 @@ https://creativecommons.org/licenses/by/4.0/
         <text x="811" y="46" text-anchor="middle" class="t-dim">p(다음 토큰)</text>
         <text x="430" y="270" text-anchor="middle" class="t-dim">각 하위 층: 정규화해서 <tspan style="fill:var(--accent)">읽고</tspan> → 계산 → 원래 벡터에 <tspan style="fill:var(--accent)">더한다</tspan>. 위치 정보(RoPE)는 Attention 안에서 Q, K에 들어간다.</text>
       </svg>
-      <figcaption><b>그림 6-2.</b> 오늘날의 decoder-only Transformer(Llama 계열). 굵은 선이 잔차 스트림이고, 블록은 거기서 값을 읽어 계산한 결과를 더해 놓는다. GPT-2는 RMSNorm 대신 LayerNorm, SwiGLU 대신 GELU FFN, RoPE 대신 학습된 위치 임베딩을 쓰지만 뼈대는 같다.</figcaption>
+      <figcaption><b>그림 6-2.</b> 표준 decoder-only Transformer(Llama 계열, 이 책의 기준 모델). 굵은 선이 잔차 스트림이고, 블록은 거기서 값을 읽어 계산한 결과를 더해 놓는다. GPT-2는 RMSNorm 대신 LayerNorm, SwiGLU 대신 GELU FFN, RoPE 대신 학습된 위치 임베딩을 쓰지만 뼈대는 같다.</figcaption>
     </figure>
     <div class="table-wrap"><table>
       <thead><tr><th>구성 요소</th><th>원 논문 (2017)</th><th>GPT-2 (2019)</th><th>Llama 3 (2024)</th></tr></thead>
@@ -187,6 +189,7 @@ https://creativecommons.org/licenses/by/4.0/
         <tr><td>편향(bias)</td><td>있음</td><td>있음</td><td>없음</td></tr>
       </tbody>
     </table></div>
+    <p>이 장은 구조가 공개되어 있고 단순한 GPT-2와 Llama 3 8B를 <strong>기준 모델</strong>로 삼아 부품을 하나씩 센다. 2026년의 대형 공개 모델(gpt-oss, Qwen3.5, DeepSeek-V4)은 같은 뼈대 위에 MoE·하이브리드 어텐션·MTP를 얹었는데, 이는 마지막의 <a href="#blueprint">2026년의 블록 설계도</a>에서 표로 비교한다.</p>
   </section>
 
   <!-- ============================================================ 2 -->
@@ -571,7 +574,69 @@ https://creativecommons.org/licenses/by/4.0/
       </div>
       <div class="sim-note">위: 토큰 12개(행) × 전문가 8개(열)의 라우터 로짓. 칸 색은 softmax 확률, 숫자는 로짓이다. 칸을 위아래로 끌면 로짓이 바뀐다. 테두리 칸이 선택된 top-k이고, ✕는 용량 초과로 드롭된 배정이다(토큰은 위에서부터 순서대로 배정). 아래: 전문가별 부하와 용량선. 해볼 것: ① 편향을 3으로 올리면 거의 모든 토큰이 전문가 1로 몰려 드롭이 폭증하고 L<sub>aux</sub>가 커진다. ② 편향 0에서 용량 계수를 1.0 → 2.0으로 올리면 드롭이 사라지지만, 그만큼 빈 슬롯(패딩 연산)이 늘어난다. ③ 한 행의 로짓 하나를 크게 끌어올려 그 토큰의 라우팅을 직접 바꿔 보자.</div>
     </div>
-    <p>MoE는 같은 연산량으로 더 큰 모델을 만드는 가장 실용적인 방법이 되어, 2024~2025년의 대형 공개 모델(DeepSeek-V3: 전체 약 671B / 활성 약 37B, 전문가 256개 중 8개 + 공유 전문가 1개; Llama 4, Qwen3 MoE 등) 상당수가 MoE다. 대신 <strong>메모리</strong>는 전체 파라미터만큼 필요하다. Mixtral 8x7B는 토큰당 13B 모델만큼 계산하지만, BF16 가중치만 약 94 GB를 올려 둬야 한다.</p>
+    <p>MoE는 같은 연산량으로 더 큰 모델을 만드는 가장 실용적인 방법이 되어, 2024~2026년의 대형 공개 모델(DeepSeek-V3: 전체 약 671B / 활성 약 37B; Llama 4 Maverick 약 400B / 17B; gpt-oss-120b 약 117B / 5.1B; Qwen3.5-397B-A17B; DeepSeek-V4-Pro 약 1.6T / 49B) 대부분이 MoE다. 이제 MoE는 대형 공개 모델의 기본값이다. 대신 <strong>메모리</strong>는 전체 파라미터만큼 필요하다. Mixtral 8x7B는 토큰당 13B 모델만큼 계산하지만, BF16 가중치만 약 94 GB를 올려 둬야 한다.</p>
+    <h3>세분화 MoE와 공유 전문가</h3>
+    <p>Mixtral의 전문가는 각각이 Llama급 FFN(d<sub>ff</sub> = 14,336) 하나다. DeepSeekMoE(Dai 등, 2024)는 이것을 거꾸로 생각했다. 전문가 하나를 m조각으로 <strong>잘게 나누고</strong>(d<sub>ff</sub>/m짜리 전문가 m·E개), 토큰마다 m·k개를 켜면 총 파라미터도 토큰당 연산도 그대로다. 달라지는 것은 <strong>조합의 수</strong>다. 8개 중 2개를 고르는 방법은 \(\binom{8}{2} = 28\)가지뿐이지만, 같은 예산을 64개 중 16개로 나누면 약 4.9 × 10<sup>14</sup>가지가 된다. 토큰마다 훨씬 정밀하게 맞춘 '전문가 팀'을 꾸릴 수 있어, 같은 연산량에서 품질이 오른다는 것이 이 <span class="term">세분화</span><span class="en">(fine-grained)</span> MoE의 논리다.</p>
+    <p>또 하나는 <span class="term">공유 전문가</span><span class="en">(shared expert)</span>다. 어느 토큰에나 필요한 공통 지식(문법, 흔한 단어 처리)을 라우팅 전문가마다 중복해서 배우는 낭비를 막기 위해, 라우터를 거치지 않고 <strong>항상</strong> 켜지는 전문가를 1~2개 둔다.</p>
+    <div class="formula">$$ y = \sum_{j=1}^{S} \mathrm{FFN}^{\text{shared}}_j(x) \;+\; \sum_{i\in \mathrm{top}\text{-}k(s(x))} g_i(x)\,\mathrm{FFN}_i(x),\qquad N_{\text{FFN,활성}} = L\,(k+S)\cdot 3\,d\,d_{e} $$
+      <div class="where">\(S\): 공유 전문가 수, \(d_e\): 전문가 하나의 FFN 차원, \(g_i\): 선택된 전문가의 게이트 가중치. 총 FFN 파라미터는 \(L(E+S)\cdot 3dd_e\)다(SwiGLU 기준).</div></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>모델</th><th class="num">라우팅 전문가 E</th><th class="num">활성 k</th><th class="num">공유 S</th><th class="num">전문가 FFN d<sub>e</sub></th><th class="num">d</th><th>출처</th></tr></thead>
+      <tbody>
+        <tr><td>Mixtral 8x7B (2023)</td><td class="num">8</td><td class="num">2</td><td class="num">0</td><td class="num">14,336</td><td class="num">4,096</td><td>Mistral AI</td></tr>
+        <tr><td>gpt-oss-120b (2025)</td><td class="num">128</td><td class="num">4</td><td class="num">0</td><td class="num">2,880</td><td class="num">2,880</td><td>config.json</td></tr>
+        <tr><td>DeepSeek-V3 (2024)</td><td class="num">256</td><td class="num">8</td><td class="num">1</td><td class="num">2,048</td><td class="num">7,168</td><td>config.json (첫 3층은 dense)</td></tr>
+        <tr><td>Qwen3.5-397B-A17B (2026)</td><td class="num">512</td><td class="num">10</td><td class="num">1</td><td class="num">1,024</td><td class="num">4,096</td><td>config.json</td></tr>
+        <tr><td>DeepSeek-V4-Pro (2026)</td><td class="num">384</td><td class="num">6</td><td class="num">1</td><td class="num">3,072</td><td class="num">7,168</td><td>config.json</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="sim" id="sim-moegran">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>세분화 MoE: 전문가 수·활성 수·공유 전문가</h3></div>
+      <div class="sim-body side">
+        <div class="sim-view"><canvas id="tf-cv-gran" class="tf-drag"></canvas><div class="hint">캔버스를 누르면 새 토큰이 라우팅된다</div></div>
+        <div class="sim-controls">
+          <div class="ctrl"><span>프리셋</span><div class="seg" id="tfg-pre"><button data-value="mx" class="on">Mixtral</button><button data-value="oss">gpt-oss-120b</button><button data-value="ds3">DeepSeek-V3</button><button data-value="q35">Qwen3.5</button><button data-value="v4">V4-Pro</button></div></div>
+          <label class="ctrl"><span>라우팅 전문가 E <output id="tfg-E-out"></output></span><input type="range" id="tfg-E" min="3" max="9" step="1" value="3"></label>
+          <label class="ctrl"><span>활성 k <output id="tfg-k-out"></output></span><input type="range" id="tfg-k" min="1" max="32" step="1" value="2"></label>
+          <label class="ctrl"><span>공유 전문가 S <output id="tfg-S-out"></output></span><input type="range" id="tfg-S" min="0" max="2" step="1" value="0"></label>
+          <label class="ctrl"><span>전문가 FFN 차원 d_e <output id="tfg-f-out"></output></span><input type="range" id="tfg-f" min="256" max="16384" step="256" value="14336"></label>
+          <div class="tf-btns"><button class="btn" id="tfg-split">같은 예산으로 2배 세분화</button></div>
+        </div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">MoE FFN 총 파라미터</span><span class="v" id="tfg-o-tot">—</span></div>
+        <div class="stat"><span class="k">토큰당 활성 FFN</span><span class="v" id="tfg-o-act">—</span></div>
+        <div class="stat"><span class="k">활성 비율</span><span class="v" id="tfg-o-ratio">—</span></div>
+        <div class="stat"><span class="k">전문가 조합 수 C(E, k)</span><span class="v" id="tfg-o-comb">—</span></div>
+      </div>
+      <div class="sim-note">층 수 L과 d는 프리셋 모델의 값이고, FFN(전문가) 부분의 파라미터만 센다(SwiGLU, 3·d·d<sub>e</sub>). 위 격자는 한 층의 전문가들이며, 테두리 칸이 이번 토큰이 켠 k개(라우터 점수는 교육용 난수), 왼쪽 위 보조색 칸이 항상 켜지는 공유 전문가다. 해볼 것: ① Mixtral에서 '2배 세분화'를 세 번 누르자(E 8 → 64, k 2 → 16, d<sub>e</sub> 14,336 → 1,792). 총·활성 파라미터는 그대로인데 조합 수가 28에서 약 10<sup>14</sup>로 뛴다. ② Qwen3.5 프리셋의 활성 비율(약 2%)과 Mixtral(25%)을 비교하자. 활성 비율이 작을수록 '지식 용량 대비 연산'이 싸지만, 메모리에는 전부 올려야 한다. ③ 공유 전문가를 0 → 1로 바꾸면 활성 파라미터가 전문가 하나만큼 는다. ④ gpt-oss-120b는 공유 전문가 없이 128개 중 4개만 쓴다.</div>
+    </div>
+
+    <h3>보조 손실 없는 부하 균형</h3>
+    <p>위의 보조 손실 \(\mathcal{L}_{aux}\)는 부하를 고르게 만들지만, 언어 모델링 손실과 <strong>다른 방향</strong>으로 라우터를 끌어당겨 품질을 깎는다. DeepSeek-V3(2024)는 <span class="term">보조 손실 없는 부하 균형</span><span class="en">(auxiliary-loss-free load balancing)</span>을 썼다. 전문가마다 편향 \(b_i\)를 두고 <strong>선택할 때만</strong> 점수에 더한다. 게이트 가중치는 원래 점수 \(s_i\)로 계산하므로 출력에는 직접 끼어들지 않는다. 학습 단계마다 과부하 전문가의 \(b_i\)는 γ만큼 내리고, 한가한 전문가는 γ만큼 올린다. 기울기가 아니라 단순 피드백 제어다.</p>
+    <div class="formula">$$ \mathcal{T} = \mathrm{top}\text{-}k\big(s_i + b_i\big),\qquad g_i = \frac{s_i}{\sum_{j\in\mathcal{T}} s_j}\ (i\in\mathcal{T}),\qquad b_i \leftarrow b_i + \gamma\,\mathrm{sign}\big(\bar c - c_i\big) $$
+      <div class="where">\(s_i\): 전문가 i의 친화도 점수(DeepSeek-V3는 시그모이드), \(c_i\): 이번 배치에서 전문가 i가 받은 토큰 수, \(\bar c\): 평균. DeepSeek-V3는 한 시퀀스 안의 극단적 쏠림만 막는 아주 작은 보조 손실을 함께 썼다. config.json의 <code>topk_method: "noaux_tc"</code>가 이 방식을 가리키며, DeepSeek-V4도 같은 값을 쓴다. Qwen3.5와 gpt-oss는 config에 보조 손실 계수(router_aux_loss_coef)를 둔다.</div></div>
+
+    <div class="sim" id="sim-moebal">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>편향 기반 부하 균형: 라우터를 건드리지 않고 고르게</h3></div>
+      <div class="sim-body side">
+        <div class="sim-view"><canvas id="tf-cv-bal" class="tf-drag"></canvas><div class="hint">아래 편향 막대를 위아래로 드래그해 직접 조정할 수도 있다</div></div>
+        <div class="sim-controls">
+          <label class="ctrl"><span>편향 갱신 속도 γ <output id="tfb-g-out"></output></span><input type="range" id="tfb-g" min="0" max="0.05" step="0.001" value="0.01"></label>
+          <label class="ctrl"><span>라우터 쏠림(전문가 1~3 선호) <output id="tfb-sk-out"></output></span><input type="range" id="tfb-sk" min="0" max="3" step="0.1" value="1.5"></label>
+          <label class="check"><input type="checkbox" id="tfb-on" checked> 편향 갱신 켜기</label>
+          <div class="tf-btns"><button class="btn primary" id="tfb-play">▶ 학습 단계 실행</button><button class="btn" id="tfb-step">1단계</button><button class="btn" id="tfb-reset">편향 0으로</button></div>
+        </div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">단계</span><span class="v" id="tfb-o-step">—</span></div>
+        <div class="stat"><span class="k">최대 부하 / 평균</span><span class="v" id="tfb-o-imb">—</span></div>
+        <div class="stat"><span class="k">진단용 L<sub>aux</sub> (학습엔 안 씀)</span><span class="v" id="tfb-o-aux">—</span></div>
+        <div class="stat"><span class="k">편향 때문에 선택이 바뀐 토큰</span><span class="v" id="tfb-o-gate">—</span></div>
+      </div>
+      <div class="sim-note">전문가 16개, top-2, 배치마다 토큰 512개(교육용 난수 특징과 고정된 라우터)다. 위: 전문가별 부하(평균 = 1 선), 가운데: 편향 b<sub>i</sub>, 아래: 단계별 최대/평균 부하. 해볼 것: ① 처음에는 쏠림 때문에 최대 부하가 평균의 약 2.7배다. '학습 단계 실행'을 누르면 수십 단계 안에 최대/평균이 1.2~1.4 근처로 내려온다(배치마다 토큰이 512개뿐이라 표본 잡음 때문에 정확히 1까지는 내려가지 않는다). 라우터 가중치는 한 번도 바뀌지 않았다. ② 갱신을 끄고 편향 막대 하나를 손으로 크게 올려 보자. 그 전문가로 토큰이 몰린다. ③ γ를 0.05로 키우면 빨리 수렴하지만 진동이 커지고, 0.002로 줄이면 느리다. ④ 마지막 칸은 편향 없이 골랐을 때와 top-2 집합이 달라진 토큰의 비율이다. 편향이 바꾸는 것은 이 일부 토큰의 <strong>선택</strong>뿐이고, 선택된 전문가의 게이트 가중치는 언제나 원래 점수 s로 계산된다.</div>
+    </div>
   </section>
 
   <!-- ============================================================ 10 -->
@@ -601,21 +666,29 @@ https://creativecommons.org/licenses/by/4.0/
       <div class="sim-body side">
         <div class="sim-view tf-views"><canvas id="tf-cv-calc"></canvas></div>
         <div class="sim-controls">
-          <div class="ctrl"><span>프리셋</span><div class="seg" id="tfc-pre"><button data-value="g2s" class="on">GPT-2 S</button><button data-value="g2xl">GPT-2 XL</button><button data-value="l8">Llama 3 8B</button><button data-value="l70">Llama 3 70B</button><button data-value="mx">Mixtral 8x7B</button></div></div>
+          <div class="ctrl"><span>프리셋</span><div class="seg" id="tfc-pre"><button data-value="g2s" class="on">GPT-2 S</button><button data-value="g2xl">GPT-2 XL</button><button data-value="l8">Llama 3 8B</button><button data-value="l70">Llama 3 70B</button><button data-value="mx">Mixtral 8x7B</button><button data-value="oss">gpt-oss-120b</button><button data-value="q35">Qwen3.5-397B</button></div></div>
           <div class="tf-num">
             <label>d_model<input class="ab-input" type="number" id="tfc-d" min="64" step="64"></label>
             <label>층 수 L<input class="ab-input" type="number" id="tfc-L" min="1" step="1"></label>
             <label>헤드 H<input class="ab-input" type="number" id="tfc-H" min="1" step="1"></label>
             <label>KV 헤드<input class="ab-input" type="number" id="tfc-KV" min="1" step="1"></label>
-            <label>FFN 차원<input class="ab-input" type="number" id="tfc-F" min="64" step="64"></label>
+            <label>head_dim<input class="ab-input" type="number" id="tfc-hd" min="1" step="1"></label>
+            <label>FFN 차원 (전문가 1개)<input class="ab-input" type="number" id="tfc-F" min="64" step="64"></label>
             <label>어휘 V<input class="ab-input" type="number" id="tfc-V" min="256" step="1"></label>
             <label>전문가 E<input class="ab-input" type="number" id="tfc-E" min="1" step="1"></label>
             <label>top-k<input class="ab-input" type="number" id="tfc-K" min="1" step="1"></label>
+            <label>공유 전문가 S<input class="ab-input" type="number" id="tfc-S" min="0" step="1"></label>
             <label>컨텍스트 n<input class="ab-input" type="number" id="tfc-n" min="1" step="1"></label>
+            <label>풀 어텐션 간격 (1 = 전부)<input class="ab-input" type="number" id="tfc-fai" min="1" step="1"></label>
+            <label>DeltaNet QK 헤드<input class="ab-input" type="number" id="tfc-lqk" min="1" step="1"></label>
+            <label>DeltaNet V 헤드<input class="ab-input" type="number" id="tfc-lv" min="1" step="1"></label>
+            <label>DeltaNet head_dim<input class="ab-input" type="number" id="tfc-ld" min="1" step="1"></label>
           </div>
           <label class="check"><input type="checkbox" id="tfc-swi"> SwiGLU (행렬 3개)</label>
           <label class="check"><input type="checkbox" id="tfc-tie"> 임베딩–LM head 가중치 공유</label>
           <label class="check"><input type="checkbox" id="tfc-g2"> GPT-2식 (편향 + LayerNorm + 학습 위치 임베딩)</label>
+          <label class="check"><input type="checkbox" id="tfc-bias"> gpt-oss식 편향 (어텐션·전문가·라우터) + 어텐션 싱크</label>
+          <label class="check"><input type="checkbox" id="tfc-gate"> Qwen3.5식 출력 게이트 어텐션 + QK-norm + 공유 전문가 게이트</label>
         </div>
       </div>
       <div class="sim-readout">
@@ -626,24 +699,106 @@ https://creativecommons.org/licenses/by/4.0/
         <div class="stat"><span class="k">BF16 가중치 메모리</span><span class="v" id="tfc-o-mem">—</span></div>
         <div class="stat"><span class="k">FFN 비중 (층 내부)</span><span class="v" id="tfc-o-ffn">—</span></div>
       </div>
-      <div class="sim-note">막대는 부품별 파라미터 수(전체 대비 %)이고, 아래 줄은 토큰당 FLOPs 분해(2 × 활성 비임베딩 파라미터 + 어텐션 점수 4·L·n·d)다. 해볼 것: ① 프리셋을 차례로 눌러 공개 값(GPT-2 S 124M, XL 1.56B, Llama 3 8B 8.03B, 70B 70.6B, Mixtral 46.7B/12.9B)과 비교하자. ② GPT-2 S에서 가중치 공유를 끄면 LM head 3,860만 개가 늘어난다. 작은 모델일수록 어휘 행렬 비중이 크다. ③ Llama 3 8B에서 KV 헤드를 32로 올리면(MHA) 층당 2,500만 개, 전체 약 8억 개가 늘어난다. ④ 컨텍스트 n을 128K(131072)로 키우면 어텐션 FLOPs가 2N에 맞먹기 시작한다.</div>
+      <div class="sim-note">막대는 부품별 파라미터 수(전체 대비 %)이고, 아래 줄은 토큰당 FLOPs 분해(2 × 활성 비임베딩 파라미터 + 어텐션 점수 4·L·n·d)다. '풀 어텐션 간격'이 1보다 크면 그 간격마다 한 층만 풀 어텐션이고 나머지는 Gated DeltaNet 층(QK·V 헤드 수와 head_dim으로 투영·합성곱·게이트 파라미터를 센다)이다. 해볼 것: ① 프리셋을 차례로 눌러 공개 값(GPT-2 S 124M, XL 1.56B, Llama 3 8B 8.03B, 70B 70.6B, Mixtral 46.7B/12.9B, gpt-oss-120b 116.8B/5.13B, Qwen3.5 397B/17B)과 비교하자. gpt-oss-120b는 config.json 값만으로 체크포인트의 116,829,156,672개와 <strong>한 자리까지</strong> 일치한다(활성은 입력 임베딩을 빼고 세면 공식 5.13B와 일치한다). Qwen3.5는 텍스트 본체 약 396.3B로, 공식 397B에는 비전 인코더(약 0.46B)가 포함되고 MTP 층(약 6.6B)은 빠진 것으로 보인다. ② GPT-2 S에서 가중치 공유를 끄면 LM head 3,860만 개가 늘어난다. 작은 모델일수록 어휘 행렬 비중이 크다. ③ Llama 3 8B에서 KV 헤드를 32로 올리면(MHA) 층당 2,500만 개, 전체 약 8억 개가 늘어난다. ④ 컨텍스트 n을 128K(131072)로 키우면 어텐션 FLOPs가 2N에 맞먹기 시작한다.</div>
     </div>
     <div class="callout tip"><strong>암산용 규칙</strong>
       <p>파라미터 N ≈ 12·L·d² (MHA·4d FFN 기준), 추론 FLOPs ≈ 2N/토큰, 학습 FLOPs ≈ 6N/토큰, BF16 가중치 ≈ 2N 바이트. 70B 모델은 가중치만 140 GB라 H100 80 GB 한 장에 올라가지 않는다. 그래서 텐서 병렬로 여러 장에 나누거나 <a href="quantization.html">9장</a>의 양자화로 줄인다.</p>
     </div>
   </section>
 
+  <!-- ============================================================ 11 -->
+  <section id="blueprint">
+    <h2>2026년의 블록 설계도</h2>
+    <p>지금까지는 구조가 공개되어 있고 단순한 GPT-2와 Llama 3 8B를 <strong>기준 모델</strong>로 썼다. 2026년의 대형 공개 모델은 같은 뼈대(잔차 스트림, Pre-norm, RMSNorm, SwiGLU, RoPE) 위에서 세 군데를 크게 바꿨다. FFN은 세분화 MoE로, 어텐션은 긴 문맥용 변형(윈도우·희소·압축·선형 하이브리드, <a href="attention.html">5장</a>)으로, 출력 쪽에는 MTP가 붙었다. 아래 표의 값은 각 모델의 Hugging Face config.json, 모델 카드, 기술 보고서·공식 블로그에서 확인한 것이고, 공개되지 않은 칸은 '—'로 두었다.</p>
+    <div class="table-wrap"><table class="tf-cmp">
+      <thead><tr><th>항목</th><th>GPT-2 (2019)</th><th>Llama 3 8B (2024)</th><th>gpt-oss-120b (2025)</th><th>Qwen3.5-397B-A17B (2026)</th><th>DeepSeek-V4-Pro (2026)</th></tr></thead>
+      <tbody>
+        <tr><td>파라미터 (총 / 활성)</td><td>124M ~ 1.56B, dense</td><td>8.03B, dense</td><td>116.8B / 5.1B</td><td>397B / 17B</td><td>1.6T / 49B</td></tr>
+        <tr><td>층 × d</td><td>12 × 768 (small) ~ 48 × 1600 (XL)</td><td>32 × 4096</td><td>36 × 2880</td><td>60 × 4096</td><td>61 × 7168</td></tr>
+        <tr><td>어텐션</td><td>MHA</td><td>GQA (Q 32 / KV 8)</td><td>GQA (Q 64 / KV 8, head_dim 64), 윈도우 128 층과 풀 층 1:1 교대, 헤드별 어텐션 싱크</td><td>Gated DeltaNet 45층 + Gated Attention 15층 (3:1, Q 32 / KV 2, head_dim 256)</td><td>CSA(KV 4배 압축 + top-k)와 HCA(128배 압축) 교대 + 윈도우 128 가지, KV 헤드 1 (head_dim 512)</td></tr>
+        <tr><td>정규화 · 잔차</td><td>LayerNorm, Pre-norm</td><td>RMSNorm, Pre-norm</td><td>RMSNorm, Pre-norm</td><td>RMSNorm, Pre-norm</td><td>RMSNorm, 잔차는 mHC(다중 잔차 스트림)</td></tr>
+        <tr><td>FFN 활성화</td><td>GELU</td><td>SwiGLU</td><td>SwiGLU (클램프 7)</td><td>SwiGLU</td><td>SwiGLU (클램프 10)</td></tr>
+        <tr><td>위치 인코딩</td><td>학습된 절대 위치 (1,024개)</td><td>RoPE (θ = 500,000)</td><td>RoPE + YaRN (×32)</td><td>풀 어텐션 층만 RoPE (head_dim의 25%, θ = 10⁷)</td><td>RoPE + YaRN (×16)</td></tr>
+        <tr><td>MoE</td><td>없음</td><td>없음</td><td>128개 중 4개, 공유 0</td><td>512개 중 10개 + 공유 1</td><td>384개 중 6개 + 공유 1, 보조 손실 없는 균형</td></tr>
+        <tr><td>MTP</td><td>없음</td><td>없음</td><td>—</td><td>1층</td><td>1층</td></tr>
+        <tr><td>컨텍스트</td><td class="num">1,024</td><td class="num">8,192</td><td class="num">131,072</td><td class="num">262,144</td><td class="num">1,048,576</td></tr>
+        <tr><td>배포 정밀도</td><td>FP32</td><td>BF16</td><td>MoE 가중치 MXFP4, 나머지 BF16</td><td>BF16</td><td>전문가 FP4, 나머지 FP8</td></tr>
+      </tbody>
+    </table></div>
+    <p>표에서 읽히는 경향은 분명하다. ① <strong>총 파라미터와 활성 파라미터가 한 자릿수 이상 벌어졌다</strong>(gpt-oss-120b는 약 23배, Qwen3.5는 약 23배, V4-Pro는 약 33배). ② <strong>모든 층이 같은 어텐션을 쓰지 않는다.</strong> 층마다 윈도우/풀, 선형/풀, 압축률 4/128을 번갈아 배치한다. ③ 정규화·활성화·위치 인코딩은 Llama 시대의 선택(RMSNorm, SwiGLU, RoPE)이 거의 그대로 살아남았다. 그래서 이 장 앞부분에서 배운 부품은 2026년 모델을 읽는 데도 그대로 쓰인다. Qwen3.5와 gpt-oss의 총 파라미터는 앞 절 계산기의 프리셋으로 config 값에서 직접 재현할 수 있다.</p>
+  </section>
+
+  <!-- ============================================================ 12 -->
+  <section id="mtp-hybrid">
+    <h2>MTP와 하이브리드 스택</h2>
+    <h3>하이브리드 스택: 층마다 다른 토큰 믹서</h3>
+    <p>블록의 두 부품 중 FFN(채널 믹서)은 MoE로 바뀌었고, 어텐션(토큰 믹서)은 층마다 종류가 달라졌다. 잔차 스트림이라는 공통 인터페이스 덕분에, 토큰 믹서 자리에 소프트맥스 어텐션 대신 Gated DeltaNet이나 Mamba-2 같은 순환형 층을 넣어도 블록의 나머지는 그대로다. 순환형 층은 고정 크기 상태만 들고 다녀 긴 문맥의 메모리·연산이 싸고, 소수의 풀 어텐션 층이 정밀한 검색을 맡는다(원리와 시뮬레이터는 <a href="attention.html">5장</a>).</p>
+    <figure class="diagram">
+      <svg viewBox="0 0 800 300" role="img" aria-label="표준 Transformer와 하이브리드 스택의 층 배치 비교">
+        <text x="100" y="24" text-anchor="middle" class="t-acc">표준 (Llama 3)</text>
+        <text x="300" y="24" text-anchor="middle" class="t-acc">gpt-oss</text>
+        <text x="500" y="24" text-anchor="middle" class="t-acc">Qwen3.5 (3 : 1)</text>
+        <text x="700" y="24" text-anchor="middle" class="t-acc">Jamba (Mamba 7 : 1)</text>
+        <g id="tf-hy-col">
+          <rect x="40" y="40" width="120" height="24" rx="5" class="f-acc2-soft"/><rect x="40" y="68" width="120" height="24" rx="5" class="f-acc2-soft"/><rect x="40" y="96" width="120" height="24" rx="5" class="f-acc2-soft"/><rect x="40" y="124" width="120" height="24" rx="5" class="f-acc2-soft"/><rect x="40" y="152" width="120" height="24" rx="5" class="f-acc2-soft"/><rect x="40" y="180" width="120" height="24" rx="5" class="f-acc2-soft"/><rect x="40" y="208" width="120" height="24" rx="5" class="f-acc2-soft"/><rect x="40" y="236" width="120" height="24" rx="5" class="f-acc2-soft"/>
+        </g>
+        <g class="t-sm"><text x="100" y="56" text-anchor="middle" class="t-sm">풀 어텐션</text><text x="100" y="252" text-anchor="middle" class="t-sm">풀 어텐션</text></g>
+        <rect x="240" y="40" width="120" height="24" rx="5" class="f-surface"/><rect x="240" y="68" width="120" height="24" rx="5" class="f-acc2-soft"/><rect x="240" y="96" width="120" height="24" rx="5" class="f-surface"/><rect x="240" y="124" width="120" height="24" rx="5" class="f-acc2-soft"/><rect x="240" y="152" width="120" height="24" rx="5" class="f-surface"/><rect x="240" y="180" width="120" height="24" rx="5" class="f-acc2-soft"/><rect x="240" y="208" width="120" height="24" rx="5" class="f-surface"/><rect x="240" y="236" width="120" height="24" rx="5" class="f-acc2-soft"/>
+        <text x="300" y="56" text-anchor="middle" class="t-sm">윈도우 128</text><text x="300" y="84" text-anchor="middle" class="t-sm">풀 어텐션</text>
+        <rect x="440" y="40" width="120" height="24" rx="5" class="f-acc-soft"/><rect x="440" y="68" width="120" height="24" rx="5" class="f-acc-soft"/><rect x="440" y="96" width="120" height="24" rx="5" class="f-acc-soft"/><rect x="440" y="124" width="120" height="24" rx="5" class="f-acc2-soft"/><rect x="440" y="152" width="120" height="24" rx="5" class="f-acc-soft"/><rect x="440" y="180" width="120" height="24" rx="5" class="f-acc-soft"/><rect x="440" y="208" width="120" height="24" rx="5" class="f-acc-soft"/><rect x="440" y="236" width="120" height="24" rx="5" class="f-acc2-soft"/>
+        <text x="500" y="56" text-anchor="middle" class="t-sm">Gated DeltaNet</text><text x="500" y="140" text-anchor="middle" class="t-sm">Gated Attention</text>
+        <rect x="640" y="40" width="120" height="24" rx="5" class="f-ok-soft"/><rect x="640" y="68" width="120" height="24" rx="5" class="f-ok-soft"/><rect x="640" y="96" width="120" height="24" rx="5" class="f-ok-soft"/><rect x="640" y="124" width="120" height="24" rx="5" class="f-acc2-soft"/><rect x="640" y="152" width="120" height="24" rx="5" class="f-ok-soft"/><rect x="640" y="180" width="120" height="24" rx="5" class="f-ok-soft"/><rect x="640" y="208" width="120" height="24" rx="5" class="f-ok-soft"/><rect x="640" y="236" width="120" height="24" rx="5" class="f-ok-soft"/>
+        <text x="700" y="56" text-anchor="middle" class="t-sm">Mamba</text><text x="700" y="140" text-anchor="middle" class="t-sm">풀 어텐션</text>
+        <text x="400" y="286" text-anchor="middle" class="t-dim">각 칸 = 토큰 믹서 하나(뒤에 FFN/MoE가 붙는다). 진한 보조색 칸만 문맥 길이에 비례하는 KV 캐시를 만든다.</text>
+      </svg>
+      <figcaption><b>그림 6-7.</b> 8개 층 구간의 토큰 믹서 배치. 표준 Transformer는 모든 층이 풀 어텐션이다. gpt-oss는 윈도우 128 층과 풀 층을 번갈아 두고, Qwen3.5는 Gated DeltaNet 3층마다 풀(Gated) 어텐션 1층, AI21의 Jamba(2024)는 Mamba 7층마다 어텐션 1층을 둔다. NVIDIA Nemotron-H 계열도 Mamba-2 층 위주에 어텐션 층을 섞는 하이브리드다.</figcaption>
+    </figure>
+
+    <h3>MTP: 한 번에 두 토큰 앞을 본다</h3>
+    <p>표준 언어 모델은 위치 t의 마지막 은닉 벡터로 다음 토큰 t+1 하나만 예측한다. <span class="term">MTP</span><span class="en">(Multi-Token Prediction)</span>는 그 위에 작은 모듈을 붙여 t+2(이상)까지 예측하게 한다. DeepSeek-V3(2024)의 MTP 모듈은 본 모델의 마지막 은닉 \(h_t\)와 다음 토큰의 임베딩 \(e(x_{t+1})\)을 각각 RMSNorm한 뒤 이어 붙여(2d) 선형층으로 d로 줄이고, Transformer 블록 하나를 거쳐 <strong>본 모델과 공유하는</strong> LM head로 \(x_{t+2}\)를 예측한다.</p>
+    <div class="formula">$$ h'_t = \mathrm{Block}\big(W_M\,[\mathrm{RMSNorm}(h_t);\ \mathrm{RMSNorm}(e(x_{t+1}))]\big),\qquad \mathcal{L} = \mathcal{L}_{\text{main}} + \lambda\,\mathcal{L}_{\text{MTP}}(x_{t+2}\mid h'_t) $$
+      <div class="where">\(W_M\in\mathbb{R}^{d\times 2d}\). 임베딩 행렬과 LM head는 본 모델과 공유한다. λ는 작은 가중치(0.1~0.3 정도)다.</div></div>
+    <figure class="diagram">
+      <svg viewBox="0 0 800 250" role="img" aria-label="MTP 모듈 구조">
+        <defs><marker id="tf-ar9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--text-dim)"/></marker></defs>
+        <rect x="20" y="170" width="150" height="40" rx="8" class="f-elev"/><text x="95" y="195" text-anchor="middle" class="t">본 모델 (L층)</text>
+        <path d="M95 170 V140" class="s-line" marker-end="url(#tf-ar9)"/>
+        <rect x="45" y="104" width="100" height="34" rx="6" class="f-surface"/><text x="95" y="126" text-anchor="middle" class="t-mono">hₜ</text>
+        <path d="M95 104 V76" class="s-line" marker-end="url(#tf-ar9)"/>
+        <rect x="35" y="40" width="120" height="34" rx="6" class="f-warn-soft"/><text x="95" y="62" text-anchor="middle" class="t">LM head</text>
+        <text x="95" y="28" text-anchor="middle" class="t-acc">→ xₜ₊₁</text>
+        <path d="M145 121 H230" class="s-line" marker-end="url(#tf-ar9)"/>
+        <rect x="232" y="104" width="100" height="34" rx="6" class="f-surface"/><text x="282" y="126" text-anchor="middle" class="t-mono">RMSNorm</text>
+        <rect x="232" y="170" width="100" height="40" rx="6" class="f-surface"/><text x="282" y="186" text-anchor="middle" class="t-mono">e(xₜ₊₁)</text><text x="282" y="202" text-anchor="middle" class="t-sm">공유 임베딩</text>
+        <path d="M332 121 H380 M332 190 C360 190, 360 132, 380 132" class="s-line" marker-end="url(#tf-ar9)"/>
+        <rect x="382" y="104" width="110" height="40" rx="6" class="f-acc-soft"/><text x="437" y="122" text-anchor="middle" class="t-mono">concat → W_M</text><text x="437" y="138" text-anchor="middle" class="t-sm">2d → d</text>
+        <path d="M492 124 H530" class="s-line" marker-end="url(#tf-ar9)"/>
+        <rect x="532" y="104" width="110" height="40" rx="6" class="f-acc-soft"/><text x="587" y="128" text-anchor="middle" class="t">블록 1개</text>
+        <path d="M587 104 V76" class="s-line" marker-end="url(#tf-ar9)"/>
+        <rect x="527" y="40" width="120" height="34" rx="6" class="f-warn-soft"/><text x="587" y="62" text-anchor="middle" class="t">LM head (공유)</text>
+        <text x="587" y="28" text-anchor="middle" class="t-acc">→ xₜ₊₂</text>
+        <path d="M384 92 H650 V156 H384 Z" class="s-axis" style="fill:none;stroke-dasharray:5 4"/>
+        <text x="660" y="110" class="t-sm">MTP 모듈</text>
+        <text x="400" y="238" text-anchor="middle" class="t-dim">학습: 두 손실을 함께 최소화 · 추론: 버리거나, xₜ₊₂ 예측을 추측 디코딩의 초안으로 쓴다</text>
+      </svg>
+      <figcaption><b>그림 6-8.</b> DeepSeek-V3식 MTP 모듈(깊이 1). 본 모델의 은닉 hₜ와 다음 토큰 임베딩을 합쳐 블록 하나를 더 통과시키고, 공유 LM head로 두 칸 앞 토큰을 예측한다. Qwen3.5와 DeepSeek-V4도 config에 MTP 층 1개를 둔다.</figcaption>
+    </figure>
+    <p>MTP의 효과는 두 가지다. 학습 때는 토큰마다 예측 신호가 하나 더 생겨 표현이 "조금 더 먼 미래"를 계획하도록 압박한다. 추론 때는 MTP 모듈을 버려도 되지만, 그 예측을 <a href="generation.html">8장</a>의 <strong>추측 디코딩</strong> 초안으로 쓸 수 있다. 본 모델이 다음 토큰을 내면서 동시에 그다음 토큰 후보도 내고, 다음 단계에서 검증하는 방식이다. DeepSeek-V3 보고서는 두 번째 토큰의 수용률을 약 85~90%, 생성 속도(TPS)를 약 1.8배로 보고했다. MTP 층의 파라미터는 공식 총 파라미터에 보통 포함되지 않는다. 예를 들어 Qwen3.5-397B-A17B의 체크포인트에는 약 403.4B개 값이 있는데, config로 세어 보면 본 텍스트 모델 약 396.3B + MTP 1층 약 6.6B + 비전 인코더 약 0.46B다.</p>
+  </section>
+
   <!-- ============================================================ summary -->
   <section class="keypoints" id="summary">
     <h2>핵심 정리</h2>
     <ol>
-      <li>오늘날 LLM은 거의 모두 decoder-only Transformer다. 임베딩 → N × [Norm → 인과적 어텐션 → +잔차 → Norm → FFN → +잔차] → 최종 Norm → LM head → softmax.</li>
+      <li>현재 LLM은 거의 모두 decoder-only Transformer다. 임베딩 → N × [Norm → 인과적 어텐션 → +잔차 → Norm → FFN → +잔차] → 최종 Norm → LM head → softmax.</li>
       <li>어텐션과 FFN은 순서에 무관(순열 등변)하다. 위치 정보는 입력에 더하는 사인파/학습 PE, 또는 Q·K를 회전시키는 RoPE로 넣는다.</li>
       <li>RoPE는 차원 쌍을 위치 × θ<sub>i</sub>만큼 회전시켜 \(q_m^\top k_n = q^\top R((n-m)\theta)k\)가 되게 한다. 점수가 상대 거리에만 의존하고, base를 키우면 긴 컨텍스트로 확장된다.</li>
       <li>잔차 스트림은 층을 관통하는 정보 고속도로다. 각 블록은 읽고 더할 뿐이며, 항등 경로 덕분에 기울기가 깊은 층까지 소실되지 않는다. Pre-norm은 이 경로를 깨끗하게 유지한다.</li>
       <li>LayerNorm은 평균을 빼고 표준편차로 나누며, RMSNorm은 RMS로만 나눈다(파라미터 절반, 이동 불변성 없음). 둘 다 스케일 불변이다.</li>
       <li>FFN(또는 SwiGLU)은 블록 파라미터의 2/3 이상을 차지하는 키-값 메모리다. MoE는 FFN을 E개로 복제해 top-k만 계산하므로 전체 파라미터와 활성 파라미터가 갈라진다.</li>
       <li>Llama 계열 층당 파라미터는 2d² + 2·d·H<sub>kv</sub>·d<sub>h</sub> + 3·d·d<sub>ff</sub> + 2d. 추론 ≈ 2N FLOPs/토큰, BF16 가중치 ≈ 2N 바이트.</li>
+      <li>2026년 대형 공개 모델은 <strong>세분화 MoE + 공유 전문가</strong>가 기본이다(Qwen3.5: 512개 중 10개 + 공유 1, 전체 파라미터 중 활성 약 4%). 전문가를 잘게 쪼개면 같은 예산에서 조합 수가 폭증하고, DeepSeek-V3식 편향 갱신은 보조 손실 없이 선택 단계에서만 부하를 고르게 한다.</li>
+      <li>뼈대(Pre-norm, RMSNorm, SwiGLU, RoPE)는 그대로이고, 층마다 다른 토큰 믹서(윈도우/풀, Gated DeltaNet/풀 3:1, CSA/HCA)를 섞는 하이브리드 스택과, 두 칸 앞을 예측해 학습 신호와 추측 디코딩 초안을 주는 MTP가 더해졌다.</li>
     </ol>
   </section>
 
@@ -692,6 +847,18 @@ https://creativecommons.org/licenses/by/4.0/
         <button class="opt" data-correct>전체 약 47B를 메모리에 올리지만 토큰당 계산은 약 13B 모델 수준이다</button>
         <button class="opt">전체 약 13B만 메모리에 올리면 된다</button>
       </div><div class="quiz-exp">어텐션·임베딩은 공유되고 FFN만 8개라 전체는 약 46.7B다. 토큰마다 전문가 2개만 계산하므로 활성 파라미터는 약 12.9B다. 하지만 어떤 토큰이 어느 전문가로 갈지 모르니 가중치는 전부 메모리에 있어야 한다.</div></div>
+      <div class="quiz-q"><p>7. Mixtral식 MoE(E = 8, k = 2, 전문가 FFN 14,336)를 '2배 세분화'해 E = 16, k = 4, 전문가 FFN 7,168로 바꿨다. 변하는 것은?</p><div class="opts">
+        <button class="opt">총 FFN 파라미터가 2배가 된다</button>
+        <button class="opt">토큰당 활성 FFN 파라미터가 2배가 된다</button>
+        <button class="opt" data-correct>총·활성 파라미터는 같고, 고를 수 있는 전문가 조합 수가 28에서 1,820으로 는다</button>
+        <button class="opt">라우터가 필요 없어진다</button>
+      </div><div class="quiz-exp">전문가 수 × 전문가 크기 = 16 × 7,168 = 8 × 14,336이라 총 FFN은 같고, 활성도 4 × 7,168 = 2 × 14,336으로 같다. 대신 \(\binom{16}{4} = 1{,}820\) > \(\binom{8}{2} = 28\). 이 조합의 다양성이 세분화 MoE(DeepSeekMoE)의 핵심 논리다. 라우터 행렬은 d × E로 오히려 커진다.</div></div>
+      <div class="quiz-q"><p>8. DeepSeek-V3의 '보조 손실 없는 부하 균형'에서 전문가별 편향 b<sub>i</sub>에 대한 설명으로 옳은 것은?</p><div class="opts">
+        <button class="opt">역전파로 학습되며 게이트 가중치에 곱해진다</button>
+        <button class="opt" data-correct>top-k 선택 때만 점수에 더해지고, 배치마다 과부하면 γ만큼 내리고 한가하면 올린다. 게이트 가중치는 원래 점수로 계산한다</button>
+        <button class="opt">부하가 큰 전문가의 토큰을 드롭하는 용량 계수다</button>
+        <button class="opt">추론 때만 쓰고 학습 때는 쓰지 않는다</button>
+      </div><div class="quiz-exp">편향은 기울기가 아니라 부하 피드백(sign(평균 − 부하))으로 갱신되며 선택에만 관여한다. 그래서 보조 손실처럼 언어 모델링 손실과 경쟁하는 기울기를 만들지 않으면서 부하를 고르게 한다. 위 시뮬레이터에서 라우터는 고정인데도 최대/평균 부하가 1 근처로 내려오는 것을 볼 수 있다.</div></div>
     </div>
   </section>
 </main>
@@ -1408,17 +1575,183 @@ https://creativecommons.org/licenses/by/4.0/
   });
 
   /* =====================================================================
+     SIM 7b: 세분화 MoE — 전문가 수·활성 수·공유 전문가
+     ===================================================================== */
+  safe(function () {
+    var cvEl = $("tf-cv-gran"); if (!cvEl) return;
+    // L은 MoE 층 수(DeepSeek-V3는 61층 중 첫 3층 dense → 58), d, 전문가 FFN: 각 config.json
+    var PRE = {
+      mx: { L: 32, d: 4096, E: 8, k: 2, S: 0, f: 14336 },
+      oss: { L: 36, d: 2880, E: 128, k: 4, S: 0, f: 2880 },
+      ds3: { L: 58, d: 7168, E: 256, k: 8, S: 1, f: 2048 },
+      q35: { L: 60, d: 4096, E: 512, k: 10, S: 1, f: 1024 },
+      v4: { L: 61, d: 7168, E: 384, k: 6, S: 1, f: 3072 },
+    };
+    var cur = PRE.mx, Eexact = 8, seed = 3, act = [];
+    var getE = AB.range("tfg-E", function (v) { return String(Math.pow(2, v)); }, function (v) { Eexact = Math.pow(2, v); fixK(); upd(true); });
+    var getK = AB.range("tfg-k", function (v) { return String(v); }, function () { upd(true); });
+    var getS = AB.range("tfg-S", function (v) { return String(v); }, function () { upd(false); });
+    var getF = AB.range("tfg-f", function (v) { return v.toLocaleString(); }, function () { upd(false); });
+    AB.seg("tfg-pre", function (v) { load(v); });
+    function fixK() { $("tfg-k").max = Math.min(64, Eexact); if (getK() > Eexact) getK.set(Eexact); }
+    function load(key) {
+      cur = PRE[key];
+      getE.set(Math.round(Math.log2(cur.E)));
+      Eexact = cur.E; fixK(); getK.set(cur.k); getS.set(cur.S); getF.set(cur.f); // E = 384처럼 2의 거듭제곱이 아니어도 정확히 유지
+      $("tfg-E-out").textContent = String(Eexact);
+      upd(true);
+    }
+    $("tfg-split").addEventListener("click", function () {
+      if (Eexact * 2 > 512 || getF() / 2 < 256) return;
+      var E2 = Eexact * 2;
+      if (Number.isInteger(Math.log2(E2))) getE.set(Math.log2(E2));
+      Eexact = E2; $("tfg-E-out").textContent = String(Eexact);
+      fixK(); getK.set(Math.min(64, getK() * 2)); getF.set(Math.round(getF() / 2 / 256) * 256 || 256);
+      upd(true);
+    });
+    function log10C(n, k) { var s = 0; for (var i = 0; i < k; i++) s += Math.log10((n - i) / (i + 1)); return s; }
+    function route() {
+      var r = AB.rng(seed), sc = [];
+      for (var i = 0; i < Eexact; i++) sc.push({ i: i, v: r() });
+      sc.sort(function (a, b) { return b.v - a.v; });
+      act = sc.slice(0, Math.min(getK(), Eexact)).map(function (o) { return o.i; });
+    }
+    var cv = AB.canvas(cvEl, function (ctx, w, h) {
+      var P = AB.palette(), E = Eexact, S = getS(), n = E + S;
+      var cols = Math.ceil(Math.sqrt(n * (w - 20) / (h - 50))), rows = Math.ceil(n / cols);
+      var cell = Math.min((w - 20) / cols, (h - 50) / rows), x0 = (w - cell * cols) / 2, y0 = 34;
+      ctx.font = fontOf(12, false, true); ctx.fillStyle = P.text; ctx.textAlign = "left"; ctx.textBaseline = "top";
+      ctx.fillText("한 층의 전문가 " + E + "개" + (S ? " + 공유 " + S + "개" : "") + " · 이번 토큰이 켠 칸: " + (act.length + S), 10, 10);
+      var on = {}; act.forEach(function (i) { on[i] = 1; });
+      for (var j = 0; j < n; j++) {
+        var cx = x0 + (j % cols) * cell, cy = y0 + Math.floor(j / cols) * cell, g = Math.max(0.5, cell * 0.12);
+        var shared = j < S, idx = j - S;
+        ctx.fillStyle = shared ? P.accent2 : on[idx] ? P.accent : AB.alpha(P.dim, 0.14);
+        ctx.fillRect(cx + g, cy + g, cell - 2 * g, cell - 2 * g);
+        if ((shared || on[idx]) && cell >= 7) { ctx.strokeStyle = P.text; ctx.lineWidth = 1.2; ctx.strokeRect(cx + g, cy + g, cell - 2 * g, cell - 2 * g); }
+        if (cell >= 30) { ctx.font = fontOf(10, true); ctx.fillStyle = shared || on[idx] ? AB.color("on-accent") : P.dim; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(shared ? "S" : String(idx + 1), cx + cell / 2, cy + cell / 2); }
+      }
+    }, { get height() { return cvEl.parentElement.clientWidth < 520 ? 280 : 380; } });
+    function upd(reroute) {
+      if (reroute) route();
+      var E = Eexact, k = Math.min(getK(), E), S = getS(), f = getF(), per = 3 * cur.d * f;
+      var tot = cur.L * (E + S) * per, ac = cur.L * (k + S) * per;
+      cv.redraw();
+      AB.stat("tfg-o-tot", AB.big(tot, 3) + "<small>L = " + cur.L + ", d = " + cur.d + "</small>");
+      AB.stat("tfg-o-act", AB.big(ac, 3) + "<small>dense 등가 d_ff " + ((k + S) * f).toLocaleString() + "</small>");
+      AB.stat("tfg-o-ratio", (ac / tot * 100).toFixed(ac / tot < 0.1 ? 2 : 1) + "%");
+      var lc = log10C(E, k);
+      AB.stat("tfg-o-comb", lc < 6 ? Math.round(Math.pow(10, lc)).toLocaleString() : "≈ 10<sup>" + lc.toFixed(1) + "</sup>");
+    }
+    cvEl.addEventListener("click", function () { seed += 7; upd(true); });
+    load("mx");
+  });
+
+  /* =====================================================================
+     SIM 7c: 보조 손실 없는 부하 균형 (DeepSeek-V3식 편향 갱신)
+     ===================================================================== */
+  safe(function () {
+    var cvEl = $("tf-cv-bal"); if (!cvEl) return;
+    var E = 16, K = 2, N = 512, DIM = 8;
+    var r0 = AB.rng(21), cent = [];
+    for (var i = 0; i < E; i++) { var c = []; for (var j = 0; j < DIM; j++) c.push(r0.n() * 0.6); cent.push(c); }
+    var b = [], hist = [], stepN = 0, batchSeed = 100, last = null, playing = false;
+    for (i = 0; i < E; i++) b.push(0);
+    var getG = AB.range("tfb-g", function (v) { return v.toFixed(3); }, function () {});
+    var getSk = AB.range("tfb-sk", function (v) { return v.toFixed(1); }, function () { last = run(false); cv.redraw(); stats(); });
+    function sig(x) { return 1 / (1 + Math.exp(-x)); }
+    function batch() {
+      var r = AB.rng(batchSeed), X = [];
+      for (var t = 0; t < N; t++) { var x = []; for (var j = 0; j < DIM; j++) x.push(r.n()); X.push(x); }
+      return X;
+    }
+    function topk(arr) { var idx = arr.map(function (v, i) { return i; }); idx.sort(function (p, q) { return arr[q] - arr[p]; }); return idx.slice(0, K); }
+    /** 배치 하나 라우팅. 반환: 부하, 진단용 L_aux, 선택이 바뀐 비율 */
+    function run(update) {
+      var X = batch(), sk = getSk(), cnt = [], Pm = [], changed = 0;
+      for (var e = 0; e < E; e++) { cnt.push(0); Pm.push(0); }
+      X.forEach(function (x) {
+        var s = cent.map(function (c, e) { return sig(AB.dot(x, c) + (e < 3 ? sk : 0)); });
+        var sel = topk(s.map(function (v, e) { return v + b[e]; })), sel0 = topk(s);
+        if (sel.slice().sort().join() !== sel0.slice().sort().join()) changed++;
+        sel.forEach(function (e) { cnt[e]++; });
+        var sum = s.reduce(function (a, v) { return a + v; }, 0);
+        s.forEach(function (v, e) { Pm[e] += v / sum / N; });
+      });
+      var mean = N * K / E, load = cnt.map(function (c) { return c / mean; });
+      var aux = 0; for (e = 0; e < E; e++) aux += E * (cnt[e] / (N * K)) * Pm[e];
+      if (update && $("tfb-on").checked) for (e = 0; e < E; e++) b[e] += getG() * Math.sign(mean - cnt[e]);
+      return { load: load, aux: aux, changed: changed / N, imb: Math.max.apply(null, load) };
+    }
+    function step() { batchSeed++; last = run(true); stepN++; hist.push(last.imb); if (hist.length > 300) hist.shift(); }
+    var geo = null;
+    var cv = AB.canvas(cvEl, function (ctx, w, h) {
+      if (!last) return;
+      var P = AB.palette(), x0 = 46, bw = (w - x0 - 12) / E;
+      var h1 = Math.round(h * 0.38), t1 = 22;
+      var maxL = Math.max(2, Math.ceil(Math.max.apply(null, last.load)));
+      ctx.font = fontOf(11.5, false, true); ctx.fillStyle = P.text; ctx.textAlign = "left"; ctx.textBaseline = "top";
+      ctx.fillText("전문가별 부하 (평균 = 1)", 8, 4);
+      var Y1 = function (v) { return t1 + h1 - v / maxL * h1; };
+      ctx.strokeStyle = P.grid; ctx.font = fontOf(10, true); ctx.fillStyle = P.dim; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      for (var g = 0; g <= maxL; g++) { ctx.beginPath(); ctx.moveTo(x0, Y1(g)); ctx.lineTo(w - 10, Y1(g)); ctx.stroke(); ctx.fillText(g + "×", x0 - 6, Y1(g)); }
+      for (var e = 0; e < E; e++) { ctx.fillStyle = last.load[e] > 1.3 ? P.bad : e < 3 ? P.warn : P.accent; ctx.fillRect(x0 + e * bw + 2, Y1(last.load[e]), bw - 4, Y1(0) - Y1(last.load[e])); }
+      ctx.strokeStyle = P.text; ctx.setLineDash([5, 3]); ctx.beginPath(); ctx.moveTo(x0, Y1(1)); ctx.lineTo(w - 10, Y1(1)); ctx.stroke(); ctx.setLineDash([]);
+      // 편향
+      var t2 = t1 + h1 + 30, h2 = Math.round(h * 0.24), BM = 0.3, mid = t2 + h2 / 2;
+      ctx.font = fontOf(11.5, false, true); ctx.fillStyle = P.text; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText("편향 bᵢ (선택에만 사용)", 8, t2 - 4);
+      ctx.strokeStyle = P.axis; ctx.beginPath(); ctx.moveTo(x0, mid); ctx.lineTo(w - 10, mid); ctx.stroke();
+      ctx.font = fontOf(10, true); ctx.fillStyle = P.dim; ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText("+" + BM, x0 - 6, t2); ctx.fillText("−" + BM, x0 - 6, t2 + h2); ctx.fillText("0", x0 - 6, mid);
+      for (e = 0; e < E; e++) { var v = AB.clamp(b[e], -BM, BM), yy = mid - v / BM * (h2 / 2); ctx.fillStyle = AB.diverge(v / BM); ctx.fillRect(x0 + e * bw + 2, Math.min(mid, yy), bw - 4, Math.max(1, Math.abs(yy - mid))); }
+      geo = { x0: x0, bw: bw, mid: mid, h2: h2, BM: BM, t2: t2 };
+      // 이력
+      var t3 = t2 + h2 + 26, h3 = h - t3 - 8;
+      ctx.font = fontOf(11.5, false, true); ctx.fillStyle = P.text; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText("최대/평균 부하 이력 (단계 " + stepN + ")", 8, t3 - 2);
+      var hm = Math.max(2, Math.max.apply(null, hist.concat([1])));
+      AB.chart(ctx, { x: x0, y: t3, w: w - x0 - 12, h: h3 }, { x: [0, Math.max(50, hist.length)], y: [1, hm], series: [{ data: hist.map(function (v, i) { return [i, v]; }), color: P.accent, width: 2 }], hlines: [{ y: 1, color: P.ok }], xTicks: [], yTicks: [1, Math.round(hm)] });
+    }, { get height() { return 380; } });
+    function stats() {
+      AB.stat("tfb-o-step", String(stepN));
+      AB.stat("tfb-o-imb", last.imb.toFixed(2) + "×");
+      AB.stat("tfb-o-aux", last.aux.toFixed(3));
+      AB.stat("tfb-o-gate", (last.changed * 100).toFixed(1) + "%");
+    }
+    var loop = AB.loop(cvEl, function () { if (!playing) return; step(); if (stepN % 2 === 0) { cv.redraw(); stats(); } if (stepN >= 2000) setPlay(false); });
+    function setPlay(on) { playing = on; $("tfb-play").textContent = on ? "❚❚ 일시 정지" : "▶ 학습 단계 실행"; if (on) loop.start(); }
+    $("tfb-play").addEventListener("click", function () { setPlay(!playing); });
+    $("tfb-step").addEventListener("click", function () { step(); cv.redraw(); stats(); });
+    $("tfb-reset").addEventListener("click", function () { for (var e = 0; e < E; e++) b[e] = 0; hist = []; stepN = 0; last = run(false); hist.push(last.imb); cv.redraw(); stats(); });
+    var drag = null;
+    bindPtr(cvEl, {
+      down: function (x, y) {
+        if (!geo || y < geo.t2 - 6 || y > geo.t2 + geo.h2 + 6) return false;
+        var e = Math.floor((x - geo.x0) / geo.bw); if (e < 0 || e >= E) return false;
+        drag = e;
+      },
+      move: function (x, y) { if (drag == null) return; b[drag] = AB.clamp((geo.mid - y) / (geo.h2 / 2) * geo.BM, -geo.BM, geo.BM); last = run(false); cv.redraw(); stats(); },
+      up: function () { drag = null; },
+    });
+    last = run(false); hist.push(last.imb); cv.redraw(); stats();
+  });
+
+  /* =====================================================================
      SIM 8: 파라미터·FLOPs 계산기
      ===================================================================== */
   safe(function () {
+    var X0 = { S: 0, fai: 1, lqk: 16, lv: 32, ld: 128, bias: false, gate: false };
+    function P0(o) { for (var k in X0) if (!(k in o)) o[k] = X0[k]; return o; }
     var PRE = {
-      g2s: { d: 768, L: 12, H: 12, KV: 12, F: 3072, V: 50257, E: 1, K: 1, n: 1024, swi: false, tie: true, g2: true, ref: 124439808, refTxt: "124.4M (GPT-2 small)" },
-      g2xl: { d: 1600, L: 48, H: 25, KV: 25, F: 6400, V: 50257, E: 1, K: 1, n: 1024, swi: false, tie: true, g2: true, ref: 1557611200, refTxt: "1.558B (GPT-2 XL)" },
-      l8: { d: 4096, L: 32, H: 32, KV: 8, F: 14336, V: 128256, E: 1, K: 1, n: 8192, swi: true, tie: false, g2: false, ref: 8.03e9, refTxt: "8.03B (Llama 3 8B)" },
-      l70: { d: 8192, L: 80, H: 64, KV: 8, F: 28672, V: 128256, E: 1, K: 1, n: 8192, swi: true, tie: false, g2: false, ref: 70.6e9, refTxt: "70.6B (Llama 3 70B)" },
-      mx: { d: 4096, L: 32, H: 32, KV: 8, F: 14336, V: 32000, E: 8, K: 2, n: 32768, swi: true, tie: false, g2: false, ref: 46.7e9, refAct: 12.9e9, refTxt: "46.7B / 활성 12.9B (Mixtral)" },
+      g2s: P0({ d: 768, L: 12, H: 12, KV: 12, hd: 64, F: 3072, V: 50257, E: 1, K: 1, n: 1024, swi: false, tie: true, g2: true, ref: 124439808, refTxt: "124.4M (GPT-2 small)" }),
+      g2xl: P0({ d: 1600, L: 48, H: 25, KV: 25, hd: 64, F: 6400, V: 50257, E: 1, K: 1, n: 1024, swi: false, tie: true, g2: true, ref: 1557611200, refTxt: "1.558B (GPT-2 XL)" }),
+      l8: P0({ d: 4096, L: 32, H: 32, KV: 8, hd: 128, F: 14336, V: 128256, E: 1, K: 1, n: 8192, swi: true, tie: false, g2: false, ref: 8.03e9, refTxt: "8.03B (Llama 3 8B)" }),
+      l70: P0({ d: 8192, L: 80, H: 64, KV: 8, hd: 128, F: 28672, V: 128256, E: 1, K: 1, n: 8192, swi: true, tie: false, g2: false, ref: 70.6e9, refTxt: "70.6B (Llama 3 70B)" }),
+      mx: P0({ d: 4096, L: 32, H: 32, KV: 8, hd: 128, F: 14336, V: 32000, E: 8, K: 2, n: 32768, swi: true, tie: false, g2: false, ref: 46.7e9, refAct: 12.9e9, refTxt: "46.7B / 활성 12.9B (Mixtral)" }),
+      // gpt-oss-120b: HF config.json. 체크포인트 총 116,829,156,672개. 공식 활성 5.13B = 입력 임베딩 제외
+      oss: P0({ d: 2880, L: 36, H: 64, KV: 8, hd: 64, F: 2880, V: 201088, E: 128, K: 4, n: 131072, swi: true, tie: false, g2: false, bias: true, ref: 116829156672, refAct: 5.13e9, actNoEmb: true, refTxt: "116.8B / 활성 5.13B (gpt-oss-120b)" }),
+      // Qwen3.5-397B-A17B: text_config. 공식 397B ≈ 텍스트 396.3B + 비전 ~0.46B (MTP 1층 ~6.6B 제외)
+      q35: P0({ d: 4096, L: 60, H: 32, KV: 2, hd: 256, F: 1024, V: 248320, E: 512, K: 10, S: 1, n: 262144, swi: true, tie: false, g2: false, gate: true, fai: 4, lqk: 16, lv: 64, ld: 128, ref: 397e9, refAct: 17e9, refTxt: "397B / 활성 17B (Qwen3.5, 비전 포함 공식값)" }),
     };
-    var F = ["d", "L", "H", "KV", "F", "V", "E", "K", "n"], C = ["swi", "tie", "g2"], cur = "g2s";
+    var F = ["d", "L", "H", "KV", "hd", "F", "V", "E", "K", "S", "n", "fai", "lqk", "lv", "ld"], C = ["swi", "tie", "g2", "bias", "gate"], cur = "g2s";
     var preSeg = AB.seg("tfc-pre", function (v) { load(v); });
     function load(key) {
       var p = PRE[key]; cur = key;
@@ -1426,28 +1759,36 @@ https://creativecommons.org/licenses/by/4.0/
       C.forEach(function (c) { $("tfc-" + c).checked = p[c]; });
       upd();
     }
-    function read() { var o = {}; F.forEach(function (f) { o[f] = Math.max(1, Math.round(Number($("tfc-" + f).value) || 1)); }); C.forEach(function (c) { o[c] = $("tfc-" + c).checked; }); o.K = Math.min(o.K, o.E); o.KV = Math.min(o.KV, o.H); return o; }
+    function read() { var o = {}; F.forEach(function (f) { o[f] = Math.max(f === "S" ? 0 : 1, Math.round(Number($("tfc-" + f).value) || 0)); }); C.forEach(function (c) { o[c] = $("tfc-" + c).checked; }); o.K = Math.min(o.K, o.E); o.KV = Math.min(o.KV, o.H); return o; }
     function calc(o) {
-      var hd = o.d / o.H;
-      var attn = o.d * o.H * hd + 2 * o.d * o.KV * hd + o.H * hd * o.d + (o.g2 ? o.H * hd + 2 * o.KV * hd + o.d : 0);
-      var ffn1 = (o.swi ? 3 : 2) * o.d * o.F + (o.g2 ? (o.swi ? 2 * o.F : o.F) + o.d : 0);
-      var router = o.E > 1 ? o.d * o.E : 0;
+      var hd = o.hd, qd = o.H * hd, kvd = o.KV * hd;
+      var attn = o.d * qd * (o.gate ? 2 : 1) + 2 * o.d * kvd + qd * o.d
+        + (o.g2 ? qd + 2 * kvd + o.d : 0)
+        + (o.bias ? qd + 2 * kvd + o.d + o.H : 0)   // q,k,v,o 편향 + 헤드별 싱크 로짓
+        + (o.gate ? 2 * hd : 0);                       // QK-norm
+      var kd = o.lqk * o.ld, vd = o.lv * o.ld;
+      // Gated DeltaNet: q,k,v,z 투영 + β·α 투영 + 깊이별 합성곱(커널 4) + A_log·dt_bias + 출력 norm + 출력 투영
+      var lin = o.d * (2 * kd + 2 * vd) + o.d * 2 * o.lv + (2 * kd + vd) * 4 + 2 * o.lv + o.ld + vd * o.d;
+      var nFull = o.fai > 1 ? Math.floor(o.L / o.fai) : o.L, nLin = o.L - nFull;
+      var ffn1 = (o.swi ? 3 : 2) * o.d * o.F + (o.g2 || o.bias ? (o.swi ? 2 * o.F : o.F) + o.d : 0);
+      var router = o.E > 1 ? o.d * o.E + (o.bias ? o.E : 0) : 0;
+      var sgate = o.gate && o.S > 0 ? o.d : 0;
       var norm = 2 * (o.g2 ? 2 * o.d : o.d);
       var emb = o.V * o.d, pos = o.g2 ? o.n * o.d : 0, head = o.tie ? 0 : o.V * o.d, fin = o.g2 ? 2 * o.d : o.d;
       var parts = {
-        emb: emb + pos, attn: o.L * attn, ffn: o.L * o.E * ffn1, router: o.L * router, norm: o.L * norm + fin, head: head,
+        emb: emb + pos, attn: nFull * attn + nLin * lin, ffn: o.L * (o.E + o.S) * ffn1, router: o.L * (router + sgate), norm: o.L * norm + fin, head: head,
       };
       var total = parts.emb + parts.attn + parts.ffn + parts.router + parts.norm + parts.head;
       var active = total - o.L * (o.E - o.K) * ffn1;
-      var matmul = o.L * (attn + o.K * ffn1 + router) + o.V * o.d; // LM head는 묶여 있어도 곱셈은 한다
-      var flMat = 2 * matmul, flAtt = 4 * o.L * o.n * o.d;
-      return { parts: parts, total: total, active: active, flMat: flMat, flAtt: flAtt, ffnShare: (o.E * ffn1) / (attn + o.E * ffn1 + router + norm), hd: hd };
+      var matmul = nFull * attn + nLin * lin + o.L * ((o.K + o.S) * ffn1 + router + sgate) + o.V * o.d; // LM head는 묶여 있어도 곱셈은 한다
+      var flMat = 2 * matmul, flAtt = 4 * nFull * o.n * qd;
+      return { parts: parts, total: total, active: active, activeNoEmb: active - parts.emb, flMat: flMat, flAtt: flAtt, ffnShare: parts.ffn / (parts.attn + parts.ffn + parts.router + o.L * norm), hd: o.d / o.H, nLin: nLin };
     }
     var res = null;
     var cv = AB.canvas($("tf-cv-calc"), function (ctx, w, h) {
       if (!res) return;
       var P = AB.palette(), R = res;
-      var rows = [["임베딩" + (read().g2 ? "+위치" : ""), R.parts.emb, P.series[3]], ["어텐션", R.parts.attn, P.accent], ["FFN" + (read().E > 1 ? " (전문가 전체)" : ""), R.parts.ffn, P.accent2], ["라우터", R.parts.router, P.warn], ["Norm", R.parts.norm, P.dim], ["LM head", R.parts.head, P.blue]];
+      var rows = [["임베딩" + (read().g2 ? "+위치" : ""), R.parts.emb, P.series[3]], [R.nLin ? "어텐션+DeltaNet" : "어텐션", R.parts.attn, P.accent], ["FFN" + (read().E > 1 ? " (전문가 전체)" : ""), R.parts.ffn, P.accent2], ["라우터", R.parts.router, P.warn], ["Norm", R.parts.norm, P.dim], ["LM head", R.parts.head, P.blue]];
       rows = rows.filter(function (r) { return r[1] > 0 || r[0] === "LM head"; });
       var lw = Math.min(118, w * 0.3), top = 14, rh = 30, bw = w - lw - 96;
       ctx.textBaseline = "middle";
@@ -1472,18 +1813,19 @@ https://creativecommons.org/licenses/by/4.0/
       cv.redraw();
       var p = PRE[cur];
       AB.stat("tfc-o-tot", AB.big(res.total, 4) + "<small>" + res.total.toLocaleString() + "</small>");
-      AB.stat("tfc-o-act", AB.big(res.active, 4));
+      AB.stat("tfc-o-act", AB.big(res.active, 4) + "<small>입력 임베딩 제외 " + AB.big(res.activeNoEmb, 4) + "</small>");
       if (p) {
         var e1 = (res.total / p.ref - 1) * 100, txt = p.refTxt + " · 오차 " + (e1 >= 0 ? "+" : "") + e1.toFixed(2) + "%";
-        if (p.refAct) txt += ", 활성 " + ((res.active / p.refAct - 1) * 100).toFixed(2) + "%";
+        if (p.refAct) txt += ", 활성" + (p.actNoEmb ? "(임베딩 제외)" : "") + " " + (((p.actNoEmb ? res.activeNoEmb : res.active) / p.refAct - 1) * 100).toFixed(2) + "%";
         AB.stat("tfc-o-ref", txt);
       } else AB.stat("tfc-o-ref", "사용자 설정");
       AB.stat("tfc-o-fl", AB.big(res.flMat + res.flAtt, 3) + "<small>FLOP</small>");
       AB.stat("tfc-o-mem", AB.bytes(res.total * 2, 3, false) + "<small>" + AB.bytes(res.total * 2, 3) + "</small>");
-      AB.stat("tfc-o-ffn", (res.ffnShare * 100).toFixed(1) + "%" + (Number.isInteger(res.hd) ? "" : ' <small class="tf-warn">d/H 정수 아님</small>'));
+      AB.stat("tfc-o-ffn", (res.ffnShare * 100).toFixed(1) + "%" + (read().hd * read().H === read().d ? "" : ' <small>H·head_dim ≠ d</small>'));
     }
     F.concat(C).forEach(function (f) {
       $("tfc-" + f).addEventListener("input", function () {
+        if (f === "d" || f === "H") { var dd = Number($("tfc-d").value), hh = Number($("tfc-H").value); if (dd > 0 && hh > 0) $("tfc-hd").value = Math.max(1, Math.round(dd / hh)); }
         cur = null; document.querySelectorAll("#tfc-pre button").forEach(function (b) { b.classList.remove("on"); b.setAttribute("aria-pressed", "false"); });
         upd();
       });

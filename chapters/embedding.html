@@ -14,7 +14,7 @@ https://creativecommons.org/licenses/by/4.0/
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <title>토큰과 임베딩 · AIBook</title>
-<meta name="description" content="텍스트를 숫자로 바꾸는 토큰화(BPE)와 임베딩. 원-핫에서 밀집 벡터로, 분포 가설과 PPMI, 3D 임베딩 공간 탐색, 벡터 유추, 단어를 끌어 임베딩을 직접 고치기, 브라우저에서 돌리는 word2vec까지.">
+<meta name="description" content="텍스트를 숫자로 바꾸는 토큰화(BPE)와 임베딩. 원-핫에서 밀집 벡터로, 분포 가설과 PPMI, 3D 임베딩 공간 탐색, 벡터 유추, 단어를 끌어 임베딩을 직접 고치기, 브라우저에서 돌리는 word2vec, LLM 기반 임베딩·대조 학습·Matryoshka 차원 자르기와 임베딩 양자화까지.">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
@@ -99,6 +99,7 @@ https://creativecommons.org/licenses/by/4.0/
       <li>분포 가설에서 출발해 동시출현 행렬·PPMI·SVD로 단어 벡터를 만드는 원리를 이해한다.</li>
       <li>코사인 유사도, PCA 투영, 벡터 산술(유추)로 임베딩 공간을 읽고, 그 한계를 정직하게 평가한다.</li>
       <li>word2vec(skip-gram + negative sampling)의 목적 함수와 학습 과정을 직접 돌려 보고, 문맥 임베딩·문장 임베딩으로 이어지는 흐름을 안다.</li>
+      <li>LLM 기반 임베딩 모델, 대조 학습(InfoNCE), Matryoshka 차원 축소와 임베딩 양자화가 검색 품질·비용을 어떻게 바꾸는지 실험으로 확인한다.</li>
     </ul>
   </header>
 
@@ -282,7 +283,7 @@ https://creativecommons.org/licenses/by/4.0/
       </svg>
       <figcaption><b>그림 4-2.</b> 바이트 수준 BPE에서 영어와 한국어의 출발점 차이. 영어 알파벳은 1바이트, 한글 음절은 3바이트다. 병합 규칙은 학습 코퍼스에서 자주 나온 바이트 열로만 만들어지므로, 토크나이저 학습 데이터에서 한국어 비중이 작으면 한국어 텍스트는 잘게 쪼개진다(토큰 수는 토크나이저마다 다르다).</figcaption>
     </figure>
-    <p>원인은 두 가지가 겹친다. 첫째, <strong>출발점</strong>이 다르다. 그림 4-2처럼 같은 "세 글자"라도 한국어는 바이트가 세 배다. 둘째, <strong>병합 예산의 배분</strong>이 다르다. BPE는 코퍼스에서 빈도가 높은 쌍에 병합을 쓰는데, 토크나이저 학습 코퍼스의 대부분이 영어와 코드라면 한국어 바이트 열에 돌아갈 병합이 적다. 결과적으로 같은 내용을 표현하는 데 한국어가 영어보다 토큰을 대략 1.5~3배 쓰는 일이 흔하다(토크나이저와 문체에 따라 크게 다르다). 토큰 수는 곧 API 비용, 컨텍스트 창 소모, 생성 시간이다. 어휘를 128K로 늘리고 다국어 데이터를 더 넣은 Llama 3 토크나이저가 Llama 2(32K)보다 한국어를 더 짧게 표현하는 것도, 국내 기업들이 한국어 비중을 높인 자체 토크나이저를 만드는 것도 이 때문이다.</p>
+    <p>원인은 두 가지가 겹친다. 첫째, <strong>출발점</strong>이 다르다. 그림 4-2처럼 같은 "세 글자"라도 한국어는 바이트가 세 배다. 둘째, <strong>병합 예산의 배분</strong>이 다르다. BPE는 코퍼스에서 빈도가 높은 쌍에 병합을 쓰는데, 토크나이저 학습 코퍼스의 대부분이 영어와 코드라면 한국어 바이트 열에 돌아갈 병합이 적다. 결과적으로 같은 내용을 표현하는 데 한국어가 영어보다 토큰을 대략 1.5~3배 쓰는 일이 흔하다(토크나이저와 문체에 따라 크게 다르다). 토큰 수는 곧 API 비용, 컨텍스트 창 소모, 생성 시간이다. 어휘를 128K로 늘리고 다국어 데이터를 더 넣은 Llama 3 토크나이저가 Llama 2(32K)보다 한국어를 더 짧게 표현하는 것도, 국내 기업들이 한국어 비중을 높인 자체 토크나이저를 만드는 것도 이 때문이다. 다국어 사용이 늘면서 어휘는 계속 커지는 추세다. 2025~26년의 주요 오픈 모델은 Qwen 계열 약 15만, gpt-oss 약 20만 토큰처럼 32K였던 Llama 2 시절보다 4~6배 큰 어휘를 쓴다(아래 표). 어휘가 커지면 같은 문장의 토큰 수는 줄지만, 다음 절에서 계산할 임베딩·출력층 파라미터 \(V\times d\)는 그만큼 커진다.</p>
     <h3>어휘 크기와 특수 토큰</h3>
     <div class="table-wrap"><table>
       <thead><tr><th>모델</th><th>방식</th><th class="num">어휘 크기</th><th>비고</th></tr></thead>
@@ -292,6 +293,8 @@ https://creativecommons.org/licenses/by/4.0/
         <tr><td>Llama 2</td><td>SentencePiece BPE + byte fallback</td><td class="num">32,000</td><td>숫자 한 자리씩</td></tr>
         <tr><td>GPT-4 (cl100k)</td><td>바이트 수준 BPE</td><td class="num">~100,000</td><td>숫자 최대 3자리 묶음</td></tr>
         <tr><td>Llama 3</td><td>바이트 수준 BPE (tiktoken 계열)</td><td class="num">128,256</td><td>일반 128,000 + 특수 256</td></tr>
+        <tr><td>Qwen2.5 / Qwen3</td><td>바이트 수준 BPE</td><td class="num">~151.6K</td><td>일반 151,643 + 특수 토큰. 임베딩 행렬은 151,936행으로 패딩</td></tr>
+        <tr><td>gpt-oss (o200k_harmony, 2025)</td><td>바이트 수준 BPE (tiktoken)</td><td class="num">201,088</td><td>GPT-4o의 o200k 계열 + 대화 형식(harmony)용 특수 토큰</td></tr>
       </tbody>
     </table></div>
     <p><span class="term">특수 토큰</span><span class="en">(special tokens)</span>은 텍스트에서 나오지 않고 사람이 정해 넣는 토큰이다. 문서의 시작과 끝(<code>&lt;|begin_of_text|&gt;</code>, <code>&lt;|endoftext|&gt;</code>), 대화의 역할 구분(<code>&lt;|start_header_id|&gt;user&lt;|end_header_id|&gt;</code>, <code>&lt;|eot_id|&gt;</code>), 패딩, 마스크 등이 여기에 속한다. <a href="llm.html">7장</a>의 채팅 템플릿과 <a href="generation.html">8장</a>의 "생성 멈춤" 조건이 모두 이 특수 토큰으로 구현된다. 사용자 입력에 특수 토큰 문자열이 그대로 들어오면 역할 구분이 깨질 수 있어서, 실제 서비스는 일반 텍스트 안의 특수 토큰 문자열을 따로 이스케이프한다.</p>
@@ -706,7 +709,7 @@ https://creativecommons.org/licenses/by/4.0/
       </div>
       <div class="sim-note">해볼 것: ① 기본 질의 "왕자 가 런던 에 갔다"의 1위가 "왕과 여왕이 파리에 갔다"인지 보자. 겹치는 단어가 "갔다" 하나뿐인데도 왕족·도시 방향이 비슷해서 이긴다. 단어 일치가 아닌 의미 검색이다. ② 질의 토큰 "갔다"를 눌러 빼면 순위가 어떻게 바뀌는지 보자. ③ 오른쪽 아래 수치: 평균 풀링은 어순을 무시하므로 "고양이가 쥐를 봤다"와 "쥐가 고양이를 봤다"가 cos = 1이다. 누가 누구를 봤는지 구분하려면 어순을 아는 문맥 임베딩이 필요하다. ④ 질의를 "빨강 사과 를 먹었다"로 고쳐 쓰면 1위가 어떻게 되는지 확인하자.</div>
     </div>
-    <p>이 검색 방식이 <a href="rag.html">10장</a> RAG의 핵심 부품이다. 문서들을 미리 임베딩해 벡터 데이터베이스에 넣어 두고, 질문이 오면 질문을 임베딩해 코사인이 높은 문서를 찾아 LLM에게 함께 준다. 실제 임베딩 모델의 차원은 다음과 같다(2024년 기준 대표 예).</p>
+    <p>이 검색 방식이 <a href="rag.html">10장</a> RAG의 핵심 부품이다. 문서들을 미리 임베딩해 벡터 데이터베이스에 넣어 두고, 질문이 오면 질문을 임베딩해 코사인이 높은 문서를 찾아 LLM에게 함께 준다. 실제 임베딩 모델의 차원은 다음과 같다(대표 예). 2025년 이후의 흐름은 다음 절에서 자세히 본다.</p>
     <div class="table-wrap"><table>
       <thead><tr><th>모델</th><th class="num">차원</th><th>비고</th></tr></thead>
       <tbody>
@@ -715,12 +718,110 @@ https://creativecommons.org/licenses/by/4.0/
         <tr><td>bge-m3, multilingual-e5-large</td><td class="num">1,024</td><td>한국어 포함 다국어 검색에 널리 쓰임</td></tr>
         <tr><td>OpenAI text-embedding-3-small / -large</td><td class="num">1,536 / 3,072</td><td>차원 축소 옵션 제공</td></tr>
         <tr><td>LLM 기반 임베딩 (e5-mistral 등)</td><td class="num">4,096</td><td>7B급 LLM의 은닉 차원 그대로</td></tr>
+        <tr><td>Qwen3-Embedding 0.6B / 4B / 8B (2025.6)</td><td class="num">1,024 / 2,560 / 4,096</td><td>LLM 기반, 다국어, 32K 컨텍스트, Matryoshka로 32차원까지 축소 가능</td></tr>
       </tbody>
     </table></div>
     <div class="callout warn">
       <strong>임베딩은 데이터의 편향도 배운다</strong>
       <p>분포 가설은 양날의 검이다. 임베딩은 코퍼스에 나타난 그대로의 연관을 배우므로 사회적 편향도 함께 배운다. Bolukbasi 등(2016)은 Google News word2vec에서 "man : computer programmer = woman : ?"의 답으로 homemaker가 나온다는 것을 보였다. 방법은 이 장의 도구 그대로다. 성별 방향 \(\mathbf{g} = \mathbf{v}_{he} - \mathbf{v}_{she}\)(여러 쌍의 평균)를 구하고 직업 단어를 \(\mathbf{g}\)에 투영하면, 성별과 무관해야 할 직업들이 한쪽으로 치우쳐 있다. 이 방향을 투영해서 빼 버리는 "편향 제거"도 제안되었지만, 편향이 다른 방향에 남아 여전히 복원된다는 반론(Gonen &amp; Goldberg, 2019)도 있다. 8절에서 손으로 했던 "벡터 고치기"가 실제로는 얼마나 어려운 문제인지 보여 주는 사례다.</p>
     </div>
+  </section>
+
+  <!-- ============================================================ 2026 임베딩 모델 -->
+  <section id="modern-emb">
+    <h2>2026년의 임베딩 모델</h2>
+    <p>앞 절의 평균 풀링은 원리를 보여 주는 장난감이다. 실제 검색용 임베딩 모델은 지난 몇 년 사이 크게 바뀌었다. 2019년 무렵의 표준은 BERT 같은 <b>인코더</b>를 문장 쌍으로 추가 학습한 Sentence-BERT 계열(수억 파라미터, 384~1,024차원)이었다. 2024년부터는 수십억 파라미터짜리 <b>디코더 LLM을 그대로 임베딩 모델로 바꾼</b> 모델들이 검색 벤치마크(MTEB) 상위권을 차지했고, 2025~26년에는 이것이 기본값이 되었다.</p>
+    <h3>LLM 기반 임베딩: 마지막 토큰이 문장을 요약한다</h3>
+    <p>대표 예가 <b>Qwen3-Embedding</b>(Qwen, 2025년 6월, Apache 2.0)이다. Qwen3 LLM을 출발점으로 0.6B·4B·8B 세 크기가 있고, 출력 차원은 각각 1,024·2,560·4,096으로 바탕 LLM의 은닉 차원과 같다. 입력은 최대 32K 토큰, 100개 이상의 언어와 프로그래밍 언어를 지원하며, 8B 모델은 공개 당시(2025년 6월 5일 기준) MTEB 다국어 리더보드 1위(점수 70.58)였다(Qwen, 2025). 같은 계열의 <b>Qwen3-Reranker</b>(0.6B·4B·8B)도 함께 공개되어 <a href="rag.html">10장</a>의 "임베딩 검색 → 리랭킹" 2단 구조를 한 가족 모델로 꾸릴 수 있다.</p>
+    <p>디코더 LLM은 <a href="attention.html">5장</a>의 인과 마스크 때문에 앞 토큰이 뒤 토큰을 보지 못한다. 그래서 평균 풀링 대신 <strong>마지막 토큰(끝 표시 토큰)의 은닉 상태</strong>를 문장 벡터로 쓴다. 마지막 토큰만이 문장 전체에 어텐션할 수 있기 때문이다. 이 벡터를 L2 정규화하면 <a href="vector.html">1장</a>에서 본 대로 코사인 = 내적이 된다. LLM이 사전학습으로 쌓은 세계 지식과 다국어 능력을 그대로 물려받는 것이 장점이고, 파라미터가 커서 문서 색인(모든 청크를 한 번씩 통과)이 비싸다는 것이 단점이다.</p>
+    <h3>지시문을 아는 임베딩, 다국어 임베딩</h3>
+    <p>같은 문장이라도 "검색 질의"로 쓸 때와 "중복 문서 찾기"로 쓸 때 원하는 유사도가 다르다. <span class="term">지시문 인식</span><span class="en">(instruction-aware)</span> 임베딩은 질의 앞에 과제 설명을 붙인다. Qwen3-Embedding 모델 카드의 형식은 다음과 같다.</p>
+    <div class="em-eqline" style="padding:10px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface);white-space:pre-wrap;overflow-wrap:anywhere">Instruct: Given a web search query, retrieve relevant passages that answer the query
+Query: What is the capital of China?</div>
+    <p>지시문은 보통 <b>질의 쪽에만</b> 붙이고 문서 쪽은 원문 그대로 임베딩한다. 문서 벡터는 미리 한 번 계산해 저장해 두고, 과제에 따라 질의 벡터만 다르게 만드는 비대칭 구조다. 또 다국어 모델은 여러 언어를 <b>하나의 공간</b>에 놓도록 학습되므로, 한국어 질문 벡터로 영어 문서를 찾는 교차 언어 검색이 따로 번역 없이 된다. 이 장 앞부분에서 본 "한국어는 토큰을 더 쓴다"는 문제는 여전히 남아서, 같은 내용의 한국어 문서는 색인 비용과 32K 입력 한도를 더 빨리 소모한다.</p>
+    <h3>대조 학습: 짝은 당기고, 배치 안의 나머지는 민다</h3>
+    <p>임베딩 모델을 만드는 핵심 학습법은 9절 word2vec의 음성 샘플링을 문장 단위로 확장한 <span class="term">대조 학습</span><span class="en">(contrastive learning)</span>이다. (질의, 정답 문서) 쌍 \(B\)개를 한 배치로 모으면, 질의 \(i\)에게 정답은 문서 \(i\) 하나이고 <b>같은 배치의 다른 문서 \(B-1\)개는 공짜 음성 예</b>가 된다. 이것을 <span class="term">배치 내 음성</span><span class="en">(in-batch negatives)</span>이라 한다.</p>
+    <div class="formula">$$\mathcal L_{\text{InfoNCE}} = -\frac{1}{B}\sum_{i=1}^{B}\log\frac{\exp\bigl(\cos(\mathbf q_i,\mathbf d_i)/\tau\bigr)}{\sum_{j=1}^{B}\exp\bigl(\cos(\mathbf q_i,\mathbf d_j)/\tau\bigr)}$$
+      <div class="where">\(\mathbf q_i, \mathbf d_i\): 질의와 정답 문서의 임베딩, \(\tau\): 온도(보통 0.01~0.05). 분수는 \(B\)개 문서에 대한 소프트맥스에서 정답의 확률이므로, 이 손실은 "\(B\)지선다 분류의 교차 엔트로피"다. 배치가 클수록 음성이 많아져 구분이 정밀해진다. 질의와 비슷해 보이지만 답이 아닌 <b>어려운 음성</b>(hard negative)을 일부러 섞으면 효과가 더 크다.</div>
+    </div>
+    <figure class="diagram">
+      <svg viewBox="0 0 800 300" role="img" aria-label="배치 내 음성을 쓰는 대조 학습의 유사도 행렬">
+        <text x="40" y="30" class="t-acc">배치 B = 5 의 유사도 행렬 cos(q<tspan baseline-shift="sub" font-size="11">i</tspan>, d<tspan baseline-shift="sub" font-size="11">j</tspan>)</text>
+        <g transform="translate(120,56)">
+          <text x="110" y="-8" text-anchor="middle" class="t-dim">문서 d₁ … d₅</text>
+          <text x="-14" y="112" text-anchor="end" class="t-dim">질의</text>
+          <text x="-14" y="132" text-anchor="end" class="t-dim">q₁…q₅</text>
+          <rect x="0" y="0" width="44" height="44" class="f-acc"/><rect x="44" y="0" width="44" height="44" class="f-surface"/><rect x="88" y="0" width="44" height="44" class="f-surface"/><rect x="132" y="0" width="44" height="44" class="f-acc2-soft"/><rect x="176" y="0" width="44" height="44" class="f-surface"/>
+          <rect x="0" y="44" width="44" height="44" class="f-surface"/><rect x="44" y="44" width="44" height="44" class="f-acc"/><rect x="88" y="44" width="44" height="44" class="f-surface"/><rect x="132" y="44" width="44" height="44" class="f-surface"/><rect x="176" y="44" width="44" height="44" class="f-surface"/>
+          <rect x="0" y="88" width="44" height="44" class="f-surface"/><rect x="44" y="88" width="44" height="44" class="f-surface"/><rect x="88" y="88" width="44" height="44" class="f-acc"/><rect x="132" y="88" width="44" height="44" class="f-surface"/><rect x="176" y="88" width="44" height="44" class="f-acc2-soft"/>
+          <rect x="0" y="132" width="44" height="44" class="f-surface"/><rect x="44" y="132" width="44" height="44" class="f-surface"/><rect x="88" y="132" width="44" height="44" class="f-surface"/><rect x="132" y="132" width="44" height="44" class="f-acc"/><rect x="176" y="132" width="44" height="44" class="f-surface"/>
+          <rect x="0" y="176" width="44" height="44" class="f-surface"/><rect x="44" y="176" width="44" height="44" class="f-acc2-soft"/><rect x="88" y="176" width="44" height="44" class="f-surface"/><rect x="132" y="176" width="44" height="44" class="f-surface"/><rect x="176" y="176" width="44" height="44" class="f-acc"/>
+          <path d="M0 0 H220 V220 H0 Z" class="s-line" style="fill:none"/>
+        </g>
+        <g>
+          <rect x="400" y="60" width="22" height="22" class="f-acc"/><text x="432" y="77" class="t">대각선 = 정답 쌍 (q<tspan baseline-shift="sub" font-size="11">i</tspan>, d<tspan baseline-shift="sub" font-size="11">i</tspan>): 점수를 올린다</text>
+          <rect x="400" y="100" width="22" height="22" class="f-surface" style="stroke:var(--border)"/><text x="432" y="117" class="t">나머지 = 배치 내 음성: 점수를 내린다</text>
+          <rect x="400" y="140" width="22" height="22" class="f-acc2-soft"/><text x="432" y="157" class="t">어려운 음성: 비슷하지만 답이 아님</text>
+          <text x="400" y="200" class="t-dim">행마다 소프트맥스 → 대각선 확률의 −log 평균</text>
+          <text x="400" y="222" class="t-dim">음성 B−1개를 추가 계산 없이 얻는다</text>
+          <text x="400" y="244" class="t-dim">(문서 임베딩은 이미 배치 안에 있으므로)</text>
+        </g>
+      </svg>
+      <figcaption><b>그림 4-7.</b> 배치 내 음성을 쓰는 대조 학습. \(B\)개 쌍을 한 번에 임베딩하면 \(B\times B\) 유사도 행렬이 나오고, 각 행은 "\(B\)개 중 정답 고르기" 분류 문제가 된다. 실제 학습은 배치를 수천 단위로 키우고, 검색기로 찾은 어려운 음성을 추가한다. 대규모 약지도 쌍(웹의 제목–본문, 질문–답변, LLM이 합성한 질의 등)으로 먼저 학습하고 고품질 쌍으로 다듬는 다단계 학습이 일반적이다.</figcaption>
+    </figure>
+    <h3>Matryoshka 표현 학습: 앞쪽 차원부터 중요하게</h3>
+    <p>4,096차원 벡터 1억 개는 FP32로 1.6 TB다. 차원을 줄이면 저장·검색 비용이 비례해서 줄지만, 보통의 임베딩은 정보가 모든 차원에 고루 퍼져 있어 뒷부분을 잘라 내면 품질이 크게 떨어진다. <span class="term">Matryoshka 표현 학습</span><span class="en">(MRL, Kusupati 등 2022)</span>은 러시아 인형처럼 <b>앞쪽 \(d'\)개 차원만 잘라도 그 자체로 쓸 만한 임베딩</b>이 되도록 학습한다. 방법은 단순하다. 여러 길이 \(m\in\mathcal M\)로 자른 벡터 각각에 손실을 걸어 더한다.</p>
+    <div class="formula">$$\mathcal L_{\text{MRL}} = \sum_{m\in\mathcal M} c_m\,\mathcal L\bigl(\mathbf z_{1:m}\bigr), \qquad \mathcal M = \{32, 64, 128, \dots, d\}$$
+      <div class="where">\(\mathbf z_{1:m}\): 임베딩의 앞 \(m\)개 성분(잘라 낸 뒤 다시 L2 정규화), \(\mathcal L\): 위의 InfoNCE 같은 원래 손실, \(c_m\): 가중치. 짧은 접두부가 스스로 좋은 임베딩이 되도록 압력을 받으므로, 가장 중요한(분산이 큰) 정보가 앞쪽 차원에 몰린다.</div>
+    </div>
+    <figure class="diagram">
+      <svg viewBox="0 0 800 210" role="img" aria-label="Matryoshka 임베딩의 중첩 구조">
+        <text x="20" y="28" class="t-acc">하나의 4,096차원 벡터 안에 짧은 임베딩들이 중첩된다</text>
+        <rect x="20" y="48" width="760" height="40" rx="6" class="f-surface"/>
+        <rect x="20" y="48" width="380" height="40" rx="6" class="f-acc2-soft"/>
+        <rect x="20" y="48" width="190" height="40" rx="6" class="f-acc-soft"/>
+        <rect x="20" y="48" width="48" height="40" rx="6" class="f-acc"/>
+        <text x="44" y="73" text-anchor="middle" class="t-mono" style="fill:var(--on-accent)">256</text>
+        <text x="140" y="73" text-anchor="middle" class="t-mono" style="fill:var(--text)">1,024</text>
+        <text x="305" y="73" text-anchor="middle" class="t-mono" style="fill:var(--text)">2,048</text>
+        <text x="590" y="73" text-anchor="middle" class="t-mono" style="fill:var(--text)">… 4,096</text>
+        <path d="M20 100 V112 H68 V100" class="s-acc" style="fill:none"/><text x="20" y="132" class="t">256차원: 1/16 저장</text>
+        <path d="M20 146 V158 H210 V146" class="s-acc" style="fill:none"/><text x="220" y="160" class="t">1,024차원: 1/4 저장</text>
+        <path d="M20 176 V188 H400 V176" class="s-acc2" style="fill:none"/><text x="410" y="190" class="t">2,048차원: 1/2 저장</text>
+        <text x="560" y="132" class="t-dim">앞에서부터 잘라 쓰고</text>
+        <text x="560" y="152" class="t-dim">다시 L2 정규화하면 끝</text>
+      </svg>
+      <figcaption><b>그림 4-8.</b> Matryoshka 임베딩. 모델은 하나지만 앞쪽 접두부가 각각 독립된 임베딩으로 동작한다. 같은 색인에서 "짧은 벡터로 빠르게 후보 찾기 → 긴 벡터로 다시 점수 매기기"도 가능하다. Qwen3-Embedding은 32차원부터 최대 차원까지 사용자가 출력 차원을 정할 수 있다(모델 카드 기준). 그림의 칸 비율은 개념도다.</figcaption>
+    </figure>
+    <p>차원 자르기와 함께 쓰는 것이 <b>임베딩 양자화</b>다. 성분을 FP32 대신 INT8로 저장하면 1/4, 부호만 남긴 1비트 이진 벡터로 저장하면 1/32이 된다(<a href="quantization.html">9장</a>의 양자화와 같은 원리, 저장량 표는 <a href="vector.html">1장</a>). 이진 벡터의 유사도는 XOR과 비트 세기(해밍 거리)로 아주 빠르게 계산되지만 정보 손실이 커서, 보통 이진 벡터로 후보를 넉넉히 뽑은 뒤 원래 정밀도의 벡터로 다시 점수를 매긴다(rescoring). 아래 시뮬레이터에서 두 기법을 함께 실험해 보자.</p>
+    <div class="callout warn"><strong>아래 시뮬레이터의 데이터는 합성 예시다</strong><p>이 장의 손으로 만든 12차원 벡터는 차원 자르기를 실험하기엔 너무 작다. 그래서 시드를 고정한 난수로 <b>200개 항목 × 64차원</b>의 합성 임베딩을 만들었다. 20개 군집 구조를 갖고, 차원 \(j\)의 표준편차가 \(0.92^{\,j}\)로 줄어들게 해서 <b>MRL로 학습한 모델처럼 분산이 앞쪽 차원에 몰리도록</b> 했다. 비교군 "비MRL"은 같은 벡터에 무작위 직교 회전을 곱한 것이다. 회전은 모든 코사인을 보존하므로 64차원 전체에서는 두 데이터의 최근접 이웃이 완전히 같지만, 정보가 모든 차원에 고루 퍼진다. 실제 모델의 수치가 아니라 원리를 보이기 위한 교육용 예시이며, 계산(코사인 top-10, 양자화, 해밍 거리)은 모두 실제로 한다.</p></div>
+
+    <div class="sim" id="sim-mrl">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>Matryoshka 차원 자르기와 임베딩 양자화</h3></div>
+      <div class="sim-body side">
+        <div class="sim-view em-pad">
+          <div><span class="em-cap">recall@10 (64차원 FP32의 최근접 10개를 얼마나 되찾나) · 그래프를 끌어 d′ 선택</span>
+            <canvas id="em-mrl-cv" class="em-canvas-touch" style="display:block;width:100%;cursor:ew-resize"></canvas></div>
+          <div><span class="em-cap">차원별 분산 (막대) · 앞 d′개 차원이 담은 분산 비율</span>
+            <canvas id="em-mrl-var" class="em-canvas-touch" style="display:block;width:100%;cursor:ew-resize"></canvas></div>
+        </div>
+        <div class="sim-controls">
+          <label class="ctrl"><span>남길 차원 d′ <output id="em-mrl-d-out"></output></span><input type="range" id="em-mrl-d" min="1" max="64" step="1" value="16"></label>
+          <div class="ctrl"><span>성분 형식</span><div class="seg" id="em-mrl-q"><button data-value="f32" class="on">FP32</button><button data-value="int8">INT8</button><button data-value="bin">이진</button><button data-value="resc">이진+재채점</button></div></div>
+          <label class="check"><input type="checkbox" id="em-mrl-ref" checked> FP32 곡선을 점선으로 같이 보기</label>
+          <p class="em-msg" style="margin:0" id="em-mrl-msg">INT8: 차원마다 최대 절댓값으로 스케일을 정해 −127~127로 반올림. 이진: 부호만 남기고 해밍 거리로 비교. 이진+재채점: 해밍 거리 상위 40개를 뽑은 뒤 d′차원 FP32 코사인으로 다시 순위를 매긴다.</p>
+        </div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">recall@10 · MRL</span><span class="v" id="em-mrl-o-a">—</span></div>
+        <div class="stat"><span class="k">recall@10 · 비MRL</span><span class="v" id="em-mrl-o-b">—</span></div>
+        <div class="stat"><span class="k">벡터당 바이트</span><span class="v" id="em-mrl-o-by">—</span></div>
+        <div class="stat"><span class="k">64D FP32 대비</span><span class="v" id="em-mrl-o-r">—</span></div>
+        <div class="stat"><span class="k">같은 비율로 4,096D 벡터 1억 개</span><span class="v" id="em-mrl-o-big">—</span></div>
+      </div>
+      <div class="sim-note">해볼 것: ① FP32에서 d′를 16까지 줄여 보자. MRL 데이터는 recall@10이 약 0.9로 버티지만, 같은 기하를 회전만 한 비MRL은 약 0.6으로 떨어진다. 아래 막대에서 MRL은 앞 16개 차원이 분산의 대부분을 담고, 비MRL은 차원마다 분산이 고르다. ② 성분 형식을 INT8로 바꾸면 곡선이 FP32 점선과 거의 겹친다. 저장은 1/4인데 순위는 거의 그대로다. ③ 이진으로 바꾸면 두 곡선 모두 크게 떨어진다. 특히 MRL은 d′를 늘려도 잘 오르지 않는다. 부호 1비트는 모든 차원에 같은 무게를 주므로, 분산이 작은 뒤쪽 차원의 잡음 같은 부호가 앞쪽 차원의 중요한 정보와 같은 표를 행사하기 때문이다. ④ 이진+재채점을 고르면 회복되는 정도를 보자. 메모리에는 1/32 크기 이진 색인만 두고, 원본 벡터는 디스크에 두었다가 후보 40개만 읽어 다시 점수를 매기는 실무 구조다. ⑤ d′ = 64로 두면 FP32 recall은 두 데이터 모두 1.0이다. 회전은 코사인을 바꾸지 않는다는 1장의 사실을 확인할 수 있다.</div>
+    </div>
+    <p>실제 수치는 모델과 벤치마크마다 다르지만 방향은 같다. MRL로 학습된 모델은 차원을 1/4~1/8로 잘라도 검색 품질 손실이 몇 퍼센트 수준인 경우가 많고, 학습하지 않은 모델은 자르면 크게 무너진다. 그래서 실무에서는 "모델이 MRL을 지원하는가"를 확인한 뒤, 평가 세트(<a href="rag.html">10장</a>의 recall@k)로 차원·양자화 조합을 골라 저장 비용과 품질을 맞춘다.</p>
   </section>
 
   <!-- ============================================================ summary -->
@@ -735,6 +836,8 @@ https://creativecommons.org/licenses/by/4.0/
       <li>의미 관계는 공간의 <strong>방향</strong>으로 나타나 a − b + c 유추가 가능하다. 하지만 입력 제외 규칙에 기대고, 실제 모델에서는 관계에 따라 잘 안 되는 경우가 많다.</li>
       <li>임베딩은 숫자 목록이고 <strong>의미는 상대적 위치</strong>다. 공간 전체 회전에 불변이라 개별 축은 의미가 없고, 학습은 기울기가 벡터를 끌고 미는 과정이다.</li>
       <li>정적 임베딩은 다의어를 구분하지 못한다. 트랜스포머는 어텐션으로 <strong>문맥 임베딩</strong>을 만들고, 풀링한 문장 임베딩은 코사인 검색(RAG)의 기반이 된다. 임베딩은 데이터의 편향도 함께 배운다.</li>
+      <li>2025~26년의 검색용 임베딩은 <strong>LLM 기반</strong>(예: Qwen3-Embedding 0.6B/4B/8B, 1,024/2,560/4,096차원, 32K 입력)이 주류다. 마지막 토큰 풀링, 질의 쪽 지시문, 다국어 공유 공간을 쓰고, 배치 내 음성을 쓰는 <strong>InfoNCE 대조 학습</strong>으로 훈련한다.</li>
+      <li><strong>Matryoshka(MRL)</strong>는 앞쪽 \(d'\)차원만 잘라도 쓸 수 있게 여러 길이에 손실을 건다. INT8(1/4)·이진(1/32) 양자화와 함께 쓰면 저장 비용을 크게 줄이며, 이진은 재채점(rescoring)으로 품질을 보완한다.</li>
     </ol>
   </section>
 
@@ -783,6 +886,20 @@ https://creativecommons.org/licenses/by/4.0/
         <button class="opt">트랜스포머는 다의어마다 토크나이저가 별도 토큰을 만든다</button>
         <button class="opt">평균 풀링 문장 임베딩을 쓰면 두 "배"가 자동으로 구분된다</button>
       </div><div class="quiz-exp">입력 임베딩 테이블은 토큰 ID만 보므로 문맥과 무관하다. 문맥 구분은 그 뒤의 어텐션(5장)과 트랜스포머 층(6장)이 한다. 정적 단어 벡터의 평균 풀링은 어순과 문맥을 무시하므로 다의어를 구분하지 못한다.</div></div>
+
+      <div class="quiz-q"><p>Q7. 배치 크기 B = 1,024로 (질의, 정답 문서) 쌍을 묶어 InfoNCE로 학습한다. 질의 하나가 받는 음성 예의 수와, 이 방식이 효율적인 이유는?</p><div class="opts">
+        <button class="opt">음성 1개. 정답과 가장 먼 문서 하나만 쓰기 때문</button>
+        <button class="opt" data-correct>음성 1,023개. 같은 배치의 다른 질의들의 정답 문서를 음성으로 재사용하므로 추가 임베딩 계산이 없다</button>
+        <button class="opt">음성 1,024²개. 모든 문서 쌍을 비교하기 때문</button>
+        <button class="opt">음성 0개. 대조 학습은 정답 쌍만 쓴다</button>
+      </div><div class="quiz-exp">배치 안의 문서 임베딩 \(B\)개는 이미 계산되어 있으므로 \(B\times B\) 유사도 행렬만 만들면 질의마다 정답 1개 + 음성 \(B-1\)개의 \(B\)지선다 소프트맥스가 된다(그림 4-7). 배치가 클수록 음성이 많아 학습 신호가 정밀해진다.</div></div>
+
+      <div class="quiz-q"><p>Q8. MRL로 학습한 임베딩과 학습하지 않은 임베딩을 모두 앞 1/4 차원만 남기고 잘랐다. 예상되는 결과는?</p><div class="opts">
+        <button class="opt">둘 다 검색 품질이 그대로다. 코사인은 차원 수와 무관하므로</button>
+        <button class="opt">둘 다 똑같이 1/4로 떨어진다</button>
+        <button class="opt" data-correct>MRL 임베딩은 중요한 정보가 앞쪽에 몰려 있어 품질이 대체로 유지되고, 일반 임베딩은 정보가 모든 차원에 퍼져 있어 크게 떨어진다</button>
+        <button class="opt">일반 임베딩이 더 잘 버틴다. MRL은 뒤쪽 차원에 정보를 몰아넣기 때문</button>
+      </div><div class="quiz-exp">MRL은 여러 길이의 접두부 각각에 손실을 걸어 앞쪽 차원이 스스로 좋은 임베딩이 되게 만든다. 11절 시뮬레이터에서 같은 기하를 회전만 한 비MRL 데이터는 전체 차원에서는 이웃이 완전히 같지만, 잘라 내면 recall이 훨씬 빨리 무너진다.</div></div>
     </div>
   </section>
 </main>
@@ -1977,6 +2094,138 @@ https://creativecommons.org/licenses/by/4.0/
       AB.stat("em-se-o-o", AB.cos(a, b).toFixed(3));
     }
     render();
+  })();
+
+  /* ======================================================= SIM 9: Matryoshka 차원 자르기 + 양자화 */
+  (function () {
+    if (!$("sim-mrl")) return;
+    const N = 200, D = 64, K = 10, NC = 20, DECAY = 0.92, NOISE = 0.8, RESC = 40;
+    // 합성 데이터(시드 고정): 군집 중심 + 잡음, 차원 j의 크기 DECAY^j → 분산이 앞쪽에 몰림(MRL 유사)
+    const r = AB.rng(2026);
+    const C = []; for (let c = 0; c < NC; c++) C.push(Array.from({ length: D }, () => r.n()));
+    const sc = Array.from({ length: D }, (_, j) => Math.pow(DECAY, j));
+    const XM = []; for (let i = 0; i < N; i++) { const c = C[i % NC]; XM.push(c.map((v, j) => sc[j] * (v + NOISE * r.n()))); }
+    // 무작위 직교 회전(그람–슈미트) → 비MRL: 코사인은 그대로, 분산은 모든 차원에 고르게
+    const Q = [];
+    for (let k = 0; k < D; k++) {
+      const v = Array.from({ length: D }, () => r.n());
+      for (const q of Q) { let d = 0; for (let j = 0; j < D; j++) d += v[j] * q[j]; for (let j = 0; j < D; j++) v[j] -= d * q[j]; }
+      let n = 0; for (let j = 0; j < D; j++) n += v[j] * v[j]; n = Math.sqrt(n); Q.push(v.map((x) => x / n));
+    }
+    const XR = XM.map((x) => Q.map((q) => { let d = 0; for (let j = 0; j < D; j++) d += q[j] * x[j]; return d; }));
+    const variance = (X) => { const m = Array(D).fill(0), v = Array(D).fill(0); X.forEach((x) => x.forEach((a, j) => (m[j] += a / N))); X.forEach((x) => x.forEach((a, j) => (v[j] += (a - m[j]) ** 2 / (N - 1)))); return v; };
+    const VAR = { m: variance(XM), r: variance(XR) };
+
+    function prep(X, dp, mode) {
+      const Y = X.map((x) => x.slice(0, dp));
+      if (mode === "int8") {
+        const s = []; for (let j = 0; j < dp; j++) { let m = 0; Y.forEach((y) => (m = Math.max(m, Math.abs(y[j])))); s.push(m / 127 || 1); }
+        return Y.map((y) => y.map((v, j) => Math.round(v / s[j]) * s[j]));
+      }
+      if (mode === "bin") return Y.map((y) => y.map((v) => (v >= 0 ? 1 : -1)));
+      return Y;
+    }
+    // 각 질의 i에 대해 다른 199개와의 유사도 상위 k (동점은 번호순)
+    function ranks(Y, k, cos) {
+      const nr = Y.map((y) => Math.sqrt(y.reduce((s, v) => s + v * v, 0)) || 1);
+      return Y.map((q, i) => {
+        const s = [];
+        for (let j = 0; j < N; j++) { if (j === i) continue; let d = 0; const y = Y[j]; for (let t = 0; t < q.length; t++) d += q[t] * y[t]; s.push([j, cos ? d / (nr[i] * nr[j]) : d]); }
+        s.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+        return s.slice(0, k).map((x) => x[0]);
+      });
+    }
+    const GT = ranks(XM, K, true); // 64D FP32 기준 (XR도 회전이라 동일)
+    const hits = (T) => { let h = 0; T.forEach((t, i) => { const g = new Set(GT[i]); t.forEach((x) => { if (g.has(x)) h++; }); }); return h / (N * K); };
+    function recall(X, dp, mode) {
+      if (mode === "resc") {
+        const B = prep(X, dp, "bin"), F = prep(X, dp, "f32");
+        const nF = F.map((y) => Math.sqrt(y.reduce((s, v) => s + v * v, 0)) || 1);
+        const cand = ranks(B, RESC, false);
+        return hits(cand.map((cs, i) => cs.map((j) => { let d = 0; for (let t = 0; t < dp; t++) d += F[i][t] * F[j][t]; return [j, d / (nF[i] * nF[j])]; })
+          .sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, K).map((x) => x[0])));
+      }
+      return hits(ranks(prep(X, dp, mode), K, mode !== "bin"));
+    }
+    const DS = [1, 2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 32, 40, 48, 56, 64];
+    const cache = {};
+    function curve(mode) {
+      if (!cache[mode]) cache[mode] = { m: DS.map((d) => [d, recall(XM, d, mode)]), r: DS.map((d) => [d, recall(XR, d, mode)]) };
+      return cache[mode];
+    }
+    const pt = {};
+    function at(mode, d) { const k = mode + ":" + d; if (!(k in pt)) pt[k] = [recall(XM, d, mode), recall(XR, d, mode)]; return pt[k]; }
+    const bytesPer = (mode, d) => (mode === "f32" ? 4 * d : mode === "int8" ? d : Math.ceil(d / 8));
+
+    const dGet = AB.range("em-mrl-d", (v) => String(v), refresh);
+    const qGet = AB.seg("em-mrl-q", refresh);
+    $("em-mrl-ref").addEventListener("change", refresh);
+    let box = null, vbox = null;
+    const cv = AB.canvas($("em-mrl-cv"), (ctx, w, h) => {
+      const P = AB.palette(), mode = qGet(), d = dGet(), cu = curve(mode);
+      const series = [];
+      if ($("em-mrl-ref").checked && mode !== "f32") {
+        const f = curve("f32");
+        series.push({ data: f.m, color: AB.alpha(P.accent, 0.55), width: 1.5, dash: [5, 4] }, { data: f.r, color: AB.alpha(P.accent2, 0.55), width: 1.5, dash: [5, 4] });
+      }
+      series.push({ data: cu.m, color: P.accent, width: 2.5 }, { data: cu.r, color: P.accent2, width: 2.5 });
+      const v = at(mode, d);
+      const res = AB.chart(ctx, { x: 46, y: 12, w: w - 60, h: h - 52 }, {
+        x: [1, 64], y: [0, 1], xLabel: "남긴 차원 d′", yLabel: "recall@10", series,
+        vlines: [{ x: d, color: P.dim, dash: [3, 3] }],
+        points: [{ x: d, y: v[0], color: P.accent, r: 5 }, { x: d, y: v[1], color: P.accent2, r: 5 }],
+        yFmt: (y) => y.toFixed(1),
+      });
+      box = res.box;
+      const ff = getComputedStyle(document.body).fontFamily;
+      ctx.font = `600 12px ${ff}`; ctx.textBaseline = "top"; ctx.textAlign = "right";
+      ctx.fillStyle = P.accent; ctx.fillText("● MRL (앞쪽에 정보 집중)", box.x + box.w - 6, box.y + box.h - 40);
+      ctx.fillStyle = P.accent2; ctx.fillText("● 비MRL (회전: 고르게 분산)", box.x + box.w - 6, box.y + box.h - 22);
+    }, { aspect: 0.5, minHeight: 220, maxHeight: 300 });
+    const vc = AB.canvas($("em-mrl-var"), (ctx, w, h) => {
+      const P = AB.palette(), d = dGet();
+      const bx = { x: 46, y: 8, w: w - 60, h: h - 30 }; vbox = bx;
+      const mx = Math.max(...VAR.m, ...VAR.r), bw = bx.w / D;
+      ctx.fillStyle = AB.alpha(P.accent, 0.08); ctx.fillRect(bx.x, bx.y, bw * d, bx.h);
+      for (let j = 0; j < D; j++) {
+        const hm = (VAR.m[j] / mx) * bx.h, hr = (VAR.r[j] / mx) * bx.h, x0 = bx.x + j * bw;
+        ctx.globalAlpha = j < d ? 1 : 0.35;
+        ctx.fillStyle = P.accent; ctx.fillRect(x0 + bw * 0.08, bx.y + bx.h - hm, bw * 0.4, hm);
+        ctx.fillStyle = P.accent2; ctx.fillRect(x0 + bw * 0.52, bx.y + bx.h - hr, bw * 0.4, hr);
+      }
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = P.axis; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx.x, bx.y + bx.h + 0.5); ctx.lineTo(bx.x + bx.w, bx.y + bx.h + 0.5); ctx.stroke();
+      ctx.strokeStyle = P.text; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(bx.x + bw * d, bx.y); ctx.lineTo(bx.x + bw * d, bx.y + bx.h); ctx.stroke(); ctx.setLineDash([]);
+      const sum = (a, n) => a.slice(0, n).reduce((s, v) => s + v, 0);
+      const fm = sum(VAR.m, d) / sum(VAR.m, D), fr = sum(VAR.r, d) / sum(VAR.r, D);
+      const ff = getComputedStyle(document.body).fontFamily;
+      ctx.font = `600 12px ${ff}`; ctx.textBaseline = "top";
+      const tx = bx.x + bw * d + 6, right = tx > bx.x + bx.w - 150;
+      ctx.textAlign = right ? "right" : "left";
+      const xx = right ? bx.x + bw * d - 6 : tx;
+      ctx.fillStyle = P.accent; ctx.fillText(`MRL ${(fm * 100).toFixed(0)}%`, xx, bx.y + 4);
+      ctx.fillStyle = P.accent2; ctx.fillText(`비MRL ${(fr * 100).toFixed(0)}%`, xx, bx.y + 20);
+      ctx.fillStyle = P.faint; ctx.font = `11px ${ff}`; ctx.textAlign = "left"; ctx.fillText("차원 1", bx.x, bx.y + bx.h + 5); ctx.textAlign = "right"; ctx.fillText("64", bx.x + bx.w, bx.y + bx.h + 5);
+    }, { height: 120 });
+    // 그래프 드래그로 d′ 선택
+    function drag(canvas, getBox, fromX) {
+      const set = (e) => { const b = getBox(); if (!b) return; const rc = canvas.getBoundingClientRect(); dGet.set(AB.clamp(Math.round(fromX(e.clientX - rc.left, b)), 1, 64), true); };
+      canvas.addEventListener("pointerdown", (e) => { canvas.setPointerCapture(e.pointerId); set(e); });
+      canvas.addEventListener("pointermove", (e) => { if (canvas.hasPointerCapture(e.pointerId)) set(e); });
+    }
+    drag($("em-mrl-cv"), () => box, (x, b) => 1 + ((x - b.x) / b.w) * 63);
+    drag($("em-mrl-var"), () => vbox, (x, b) => Math.ceil(((x - b.x) / b.w) * 64));
+    function refresh() {
+      const mode = qGet(), d = dGet(), v = at(mode, d);
+      AB.stat("em-mrl-o-a", v[0].toFixed(2));
+      AB.stat("em-mrl-o-b", v[1].toFixed(2));
+      const by = bytesPer(mode, d);
+      AB.stat("em-mrl-o-by", by + " B" + (mode === "resc" ? "<small> (메모리)</small>" : ""));
+      AB.stat("em-mrl-o-r", "1/" + AB.fmt(256 / by, 3));
+      AB.stat("em-mrl-o-big", AB.bytes(1e8 * 4096 * 4 * (by / 256), 3, false));
+      cv.redraw(); vc.redraw();
+    }
+    refresh();
   })();
 })();
 </script>

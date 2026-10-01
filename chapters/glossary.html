@@ -14,7 +14,7 @@ https://creativecommons.org/licenses/by/4.0/
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <title>용어집 &amp; 종합 퀴즈 · AIBook</title>
-<meta name="description" content="벡터에서 LLM 서빙까지, AI 핵심 용어 120여 개를 한국어·영어·약어로 검색하고, 전 챕터를 아우르는 20문항 종합 퀴즈로 실력을 점검한다.">
+<meta name="description" content="벡터에서 LLM 서빙까지, AI 핵심 용어 170여 개를 한국어·영어·약어로 검색하고, 전 챕터를 아우르는 24문항 종합 퀴즈로 실력을 점검한다.">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
@@ -66,12 +66,12 @@ https://creativecommons.org/licenses/by/4.0/
 <body data-chapter="glossary">
 <main class="chapter">
   <header class="chapter-hero">
-    <div class="eyebrow">Chapter 12</div>
+    <div class="eyebrow">Chapter 13</div>
     <h1>용어집 &amp; 종합 퀴즈</h1>
-    <p class="lead">AI 분야는 약어와 영어 용어의 숲이다. GEMM, GELU, BPE, GQA, RoPE, RMSNorm, KV 캐시, BF16, AWQ, HNSW, RRF… 이 장은 책 전체에 흩어진 핵심 용어를 한곳에 모은 사전이자, 벡터에서 LLM 서빙까지 전 범위를 점검하는 마무리 시험이다.</p>
+    <p class="lead">AI 분야는 약어와 영어 용어의 숲이다. GEMM, GELU, BPE, GQA, MLA, RoPE, RMSNorm, KV 캐시, BF16, NVFP4, AWQ, HNSW, RRF, GRPO, MCP… 이 장은 책 전체에 흩어진 핵심 용어를 한곳에 모은 사전이자, 벡터에서 추론 모델·에이전트, LLM 서빙까지 전 범위를 점검하는 마무리 시험이다.</p>
     <ul class="objectives">
       <li>한국어·영어·약어 어느 쪽으로든 용어를 찾아 정의와 해당 챕터로 바로 이동할 수 있다.</li>
-      <li>내적과 행렬곱에서 어텐션, LLM 학습·생성, 양자화, RAG, 서빙 설계까지 각 장의 핵심 개념과 실제 수치를 스스로 점검한다.</li>
+      <li>내적과 행렬곱에서 어텐션, LLM 학습·생성, 양자화, RAG, 추론 모델과 에이전트, 서빙 설계까지 각 장의 핵심 개념과 실제 수치를 스스로 점검한다.</li>
       <li>틀린 문제의 챕터를 확인하고 약한 부분을 다시 공부할 계획을 세운다.</li>
     </ul>
     <p style="margin-top:16px"><a href="#glossary">→ 용어집 바로 가기</a> · <a href="#final-quiz">→ 종합 퀴즈 바로 풀기</a></p>
@@ -79,24 +79,13 @@ https://creativecommons.org/licenses/by/4.0/
 
   <section id="glossary">
     <h2>용어집</h2>
-    <p>검색창에 한국어(예: <code>어텐션</code>), 영어(예: <code>residual</code>), 약어(예: <code>GQA</code>) 중 아무것이나 입력하면 바로 걸러진다. 정의 본문도 검색 대상이다. 챕터 칩으로 범위를 좁히고, 가나다순 또는 챕터순으로 묶어 볼 수 있다. 정의에 적힌 수치는 해당 모델의 공개 자료 기준이며, 최신 하드웨어·모델 값은 '약'으로 표기했다.</p>
+    <p>검색창에 한국어(예: <code>어텐션</code>), 영어(예: <code>residual</code>), 약어(예: <code>GQA</code>) 중 아무것이나 입력하면 바로 걸러진다. 정의 본문도 검색 대상이다. 챕터 칩으로 범위를 좁히고, 가나다순 또는 챕터순으로 묶어 볼 수 있다. 정의에 적힌 수치는 해당 모델의 공개 자료 기준이며, 최신 하드웨어·모델 값은 '약'과 공개 연도로 표기했다. 2026년 기준으로 많이 쓰이는 하이브리드 어텐션, 세분화 MoE, FP4 형식, 추론 모델 학습(RLVR·GRPO), 에이전트 프로토콜(MCP) 용어도 함께 담았다.</p>
     <div class="gl-tools">
       <input type="search" class="gl-search" id="gl-q" placeholder="용어 검색: 예) 임베딩, softmax, KV" autocomplete="off" aria-label="용어 검색">
       <div class="row">
         <span class="lbl">챕터</span>
         <div class="seg" id="gl-ch">
           <button data-value="all" class="on">전체</button>
-          <button data-value="vector">01 벡터</button>
-          <button data-value="neuron">02 뉴런</button>
-          <button data-value="training">03 학습</button>
-          <button data-value="embedding">04 임베딩</button>
-          <button data-value="attention">05 어텐션</button>
-          <button data-value="transformer">06 Transformer</button>
-          <button data-value="llm">07 LLM</button>
-          <button data-value="generation">08 생성</button>
-          <button data-value="quantization">09 양자화</button>
-          <button data-value="rag">10 RAG</button>
-          <button data-value="design">11 서빙 설계</button>
         </div>
       </div>
       <div class="row">
@@ -110,9 +99,9 @@ https://creativecommons.org/licenses/by/4.0/
 
   <section id="final-quiz">
     <h2>종합 퀴즈</h2>
-    <p>전 챕터에서 고른 20문항이다. 한 문제씩 풀고 나면 해설과 관련 챕터 링크가 나온다. 끝까지 풀면 챕터별 정답률 그래프와 “등급”을 보여 준다. 다시 풀기를 누르면 문제와 보기 순서가 섞인다. 계산 문제는 종이에 직접 셈해 보고 고르자.</p>
+    <p>전 챕터에서 고른 24문항이다. 한 문제씩 풀고 나면 해설과 관련 챕터 링크가 나온다. 끝까지 풀면 챕터별 정답률 그래프와 “등급”을 보여 준다. 다시 풀기를 누르면 문제와 보기 순서가 섞인다. 계산 문제는 종이에 직접 셈해 보고 고르자.</p>
     <div class="fq" id="fq">
-      <div class="fq-top"><span id="fq-count">문제 1 / 20</span><span id="fq-score">정답 0</span></div>
+      <div class="fq-top"><span id="fq-count">문제 1 / 24</span><span id="fq-score">정답 0</span></div>
       <div class="fq-bar"><i id="fq-fill"></i></div>
       <div class="fq-card" id="fq-card">
         <div class="fq-ch" id="fq-ch"></div>
@@ -138,7 +127,8 @@ https://creativecommons.org/licenses/by/4.0/
     <ol>
       <li>LLM의 연산은 결국 <b>내적과 행렬곱</b>이다. 임베딩은 의미를 벡터의 방향으로, 어텐션은 내적 점수를 소프트맥스로 바꾼 가중 평균으로, FFN은 행렬곱과 비선형 함수로 이루어진다.</li>
       <li>학습은 교차 엔트로피 손실을 역전파와 Adam으로 낮추는 과정이고, 규모는 스케일링 법칙(C ≈ 6ND, Chinchilla 약 20 토큰/파라미터)이 안내한다. 생성은 로짓을 샘플링해 한 토큰씩 이어 붙이며, KV 캐시가 이를 빠르게 만든다.</li>
-      <li>실제 서비스는 메모리가 지배한다. 양자화(BF16 → FP8/INT4)는 가중치·KV 캐시를 줄이고, RAG는 모델 밖의 지식을 프롬프트로 가져오며, 루프라인 분석은 병목이 연산인지 대역폭인지 알려 준다. 틀린 문제가 있던 챕터로 돌아가 시뮬레이터를 다시 만져 보자.</li>
+      <li>실제 서비스는 메모리가 지배한다. 양자화(BF16 → FP8/INT4)는 가중치·KV 캐시를 줄이고, RAG는 모델 밖의 지식을 프롬프트로 가져오며, 루프라인 분석은 병목이 연산인지 대역폭인지 알려 준다.</li>
+      <li>2026년의 대형 모델은 같은 뼈대 위에서 <b>메모리를 아끼는 방향</b>으로 진화했다. 세분화 MoE로 활성 파라미터를 줄이고, MLA·하이브리드 선형 어텐션·희소 어텐션으로 KV 캐시를 줄이며, NVFP4·MXFP4로 비트를 줄인다. 그리고 RLVR·GRPO로 학습한 추론 모델이 도구를 호출하며 일하는 에이전트가 된다. 틀린 문제가 있던 챕터로 돌아가 시뮬레이터를 다시 만져 보자.</li>
     </ol>
   </section>
 </main>
@@ -223,7 +213,7 @@ https://creativecommons.org/licenses/by/4.0/
     { ko: "RMSNorm", en: "Root mean square normalization", abbr: "RMSNorm", def: "평균을 빼지 않고 x/√(mean(x²) + ε)·γ로 크기만 정규화하는 LayerNorm 변형. 계산이 싸고 성능이 비슷해 Llama 계열이 쓴다.", ch: "transformer" },
     { ko: "Pre-LN", en: "Pre-layer normalization", abbr: "", def: "x + F(Norm(x))처럼 서브층 앞에서 정규화하는 배치. 원 논문의 Post-LN보다 깊은 모델에서 학습이 안정적이라 GPT-2 이후 표준이 됐다.", ch: "transformer" },
     { ko: "피드포워드 네트워크", en: "Feed-forward network", abbr: "FFN", def: "토큰마다 독립으로 적용하는 2층(또는 게이트형 3행렬) MLP. GPT-2는 768 → 3,072 → 768, Llama 3 8B는 SwiGLU로 4,096 → 14,336 → 4,096이다. 파라미터의 약 2/3를 차지한다.", ch: "transformer" },
-    { ko: "전문가 혼합", en: "Mixture of Experts", abbr: "MoE", def: "FFN을 여러 전문가로 나누고 토큰마다 일부만 실행한다. Mixtral 8x7B는 전문가 8개 중 2개를 골라 총 약 46.7B 중 토큰당 약 12.9B만 활성화한다.", ch: "transformer" },
+    { ko: "전문가 혼합", en: "Mixture of Experts", abbr: "MoE", def: "FFN을 여러 전문가로 나누고 토큰마다 일부만 실행한다. Mixtral 8x7B는 전문가 8개 중 2개를 골라 총 약 46.7B 중 토큰당 약 12.9B만 활성화한다. 2026년에는 대형 오픈 모델 대부분이 MoE다.", ch: "transformer" },
     { ko: "라우터", en: "Router (gating network)", abbr: "", def: "MoE에서 토큰마다 전문가 점수를 계산해 top-k를 고르는 작은 선형층. 특정 전문가에 몰리지 않도록 부하 균형 손실을 함께 쓴다.", ch: "transformer" },
     { ko: "층당 파라미터 12d²", en: "Per-layer parameter count", abbr: "", def: "MHA(Q·K·V·O 4d²) + 4배 FFN(8d²) ≈ 12d². GPT-2 small은 12 × 768² ≈ 708만/층 × 12층 + 임베딩 약 3,900만 ≈ 1.24억이다.", ch: "transformer" },
 
@@ -236,7 +226,7 @@ https://creativecommons.org/licenses/by/4.0/
     { ko: "퍼플렉서티", en: "Perplexity", abbr: "PPL", def: "exp(평균 교차 엔트로피). 모델이 매 토큰에서 평균 몇 개 후보 사이에서 헷갈리는지로 해석한다. 낮을수록 좋고, 같은 토크나이저끼리만 비교할 수 있다.", ch: "llm" },
     { ko: "지도 미세조정", en: "Supervised fine-tuning", abbr: "SFT", def: "사람이 쓴 (지시, 응답) 쌍으로 사전학습 모델을 추가 학습해 지시를 따르는 대화 형식을 익히게 하는 단계.", ch: "llm" },
     { ko: "인간 피드백 강화학습", en: "Reinforcement learning from human feedback", abbr: "RLHF", def: "사람의 선호 비교로 보상 모델을 학습하고, PPO 등으로 그 보상을 높이도록 정책(LLM)을 최적화한다. KL 페널티로 원래 모델에서 너무 멀어지지 않게 한다.", ch: "llm" },
-    { ko: "컨텍스트 윈도우", en: "Context window", abbr: "", def: "모델이 한 번에 볼 수 있는 최대 토큰 수. GPT-2 1,024, Llama 3 8,192, Llama 3.1 128K. 길수록 KV 캐시와 어텐션 비용이 커진다.", ch: "llm" },
+    { ko: "컨텍스트 윈도우", en: "Context window", abbr: "", def: "모델이 한 번에 볼 수 있는 최대 토큰 수. GPT-2 1,024, Llama 3 8,192, Llama 3.1 128K, 2026년 상위 오픈 모델은 Qwen3.5 262K·DeepSeek-V4 1M. 길수록 KV 캐시와 어텐션 비용이 커진다.", ch: "llm" },
     { ko: "인컨텍스트 학습", en: "In-context learning", abbr: "ICL", def: "가중치를 바꾸지 않고 프롬프트에 예시 몇 개(few-shot)를 넣는 것만으로 새 작업을 수행하는 능력. GPT-3(175B)에서 크게 주목받았다.", ch: "llm" },
     { ko: "LoRA", en: "Low-rank adaptation", abbr: "LoRA", def: "가중치 W는 얼리고 ΔW = BA(랭크 r = 8~64 정도)만 학습하는 미세조정. d = 4,096, r = 16이면 행렬당 학습 파라미터가 1,678만에서 13만으로 준다.", ch: "llm" },
 
@@ -282,7 +272,7 @@ https://creativecommons.org/licenses/by/4.0/
     { ko: "Recall@k", en: "Recall at k", abbr: "", def: "정답 문서(청크)가 상위 k개 안에 들어 있는 비율. RAG에서는 검색이 놓친 근거를 LLM이 복구할 수 없으므로 가장 먼저 보는 지표다.", ch: "rag" },
     { ko: "평균 역순위", en: "Mean reciprocal rank", abbr: "MRR", def: "첫 정답의 순위 r에 대해 1/r을 질의마다 평균한 값. 1위면 1, 2위면 0.5, 못 찾으면 0이다.", ch: "rag" },
 
-    // 11 서빙 설계
+    // 12 서빙 설계
     { ko: "루프라인 모델", en: "Roofline model", abbr: "", def: "달성 성능 = min(피크 FLOPS, 메모리 대역폭 × 산술 강도). 커널이 지붕의 경사면(대역폭 바운드)에 있는지 평평한 면(연산 바운드)에 있는지 보여 준다.", ch: "design" },
     { ko: "산술 강도", en: "Arithmetic intensity", abbr: "AI", def: "옮긴 바이트당 연산 수(FLOP/byte). H100 SXM의 균형점은 약 989 TFLOPS / 3.35 TB/s ≈ 295 FLOP/B로, 이보다 낮으면 대역폭 바운드다.", ch: "design" },
     { ko: "메모리 대역폭 바운드", en: "Memory-bandwidth bound", abbr: "", def: "연산기보다 메모리 읽기가 느려 성능이 대역폭에 묶인 상태. 배치 1 디코드는 토큰마다 가중치 전체를 읽어 8B BF16(16 GB)을 3.35 TB/s로 읽으면 토큰당 약 4.8 ms, 최대 약 210 토큰/s다.", ch: "design" },
@@ -294,6 +284,77 @@ https://creativecommons.org/licenses/by/4.0/
     { ko: "PagedAttention", en: "PagedAttention", abbr: "", def: "KV 캐시를 고정 크기 블록(예: 16토큰)으로 나눠 OS 가상 메모리처럼 페이지 테이블로 관리하는 기법(vLLM, 2023). 단편화를 줄여 더 큰 배치를 담는다.", ch: "design" },
     { ko: "텐서 병렬", en: "Tensor parallelism", abbr: "TP", def: "한 층의 행렬을 열·행 방향으로 나눠 여러 GPU가 동시에 계산하고 all-reduce로 합친다. 통신이 잦아 NVLink로 묶인 한 노드 안(예: 8 GPU)에서 주로 쓴다.", ch: "design" },
     { ko: "처리량", en: "Throughput", abbr: "tok/s", def: "초당 생성 토큰 수(전체 요청 합). 배치를 키우면 가중치 읽기를 여러 요청이 나눠 써 처리량이 늘지만, 요청당 지연과 KV 캐시 메모리가 함께 늘어난다.", ch: "design" },
+
+    // ---- 2026 동향 용어 ----
+    // 04 임베딩
+    { ko: "마트료시카 임베딩", en: "Matryoshka representation learning", abbr: "MRL", def: "앞쪽 d'개 차원만 잘라 써도 성능이 크게 떨어지지 않도록, 여러 절단 길이의 손실을 함께 최소화해 학습한 임베딩. 저장·검색 비용에 맞춰 차원을 고를 수 있다. Qwen3-Embedding(0.6B/4B/8B, 2025)이 지원한다.", ch: "embedding" },
+
+    // 05 어텐션
+    { ko: "멀티헤드 잠재 어텐션", en: "Multi-head latent attention", abbr: "MLA", def: "K·V를 헤드별로 저장하지 않고 저차원 잠재 벡터 c 하나로 압축해 캐시한 뒤, 쓸 때 업프로젝션한다(흡수 트릭으로 W_Q·W_O에 합칠 수 있다). DeepSeek-V3는 층·토큰당 잠재 512 + RoPE용 64 = 576개 값만 캐시해, 128헤드 × 128차원 MHA의 K·V(32,768개)의 약 1/57이다(DeepSeek, 2024).", ch: "attention" },
+    { ko: "선형 어텐션", en: "Linear attention", abbr: "", def: "소프트맥스 대신 고정 크기 상태 행렬 S(d_k × d_v)에 kᵀv를 누적하고 o = Sq로 읽는 어텐션 계열. 연산이 길이에 선형이고 KV 캐시가 길이와 무관하게 일정하지만, 먼 과거의 정확한 회상은 소프트맥스 어텐션보다 약하다.", ch: "attention" },
+    { ko: "게이트 델타넷", en: "Gated DeltaNet", abbr: "GDN", def: "선형 어텐션의 상태를 S_t = α_t S_{t−1}(I − β_t k_t k_tᵀ) + β_t v_t k_tᵀ로 갱신한다. α는 감쇠 게이트(잊기), β는 델타 규칙 쓰기 강도(키 k의 기존 값을 지우고 새 값으로 덮기)다. Qwen3-Next·Qwen3.5가 쓰며, Kimi Delta Attention(KDA, 2025)은 이를 개량했다.", ch: "attention" },
+    { ko: "하이브리드 어텐션", en: "Hybrid attention", abbr: "", def: "층 일부만 소프트맥스(풀) 어텐션으로 두고 나머지를 선형 어텐션·상태공간(Mamba-2) 층으로 바꾼 구조. Qwen3.5(2026)는 60층 = 15 × [Gated DeltaNet 3층 + Gated Attention 1층]으로 3:1이며, 길이에 비례하는 KV 캐시는 풀 어텐션 층(1/4)에만 생긴다.", ch: "attention" },
+    { ko: "희소 어텐션", en: "Sparse attention (DSA)", abbr: "DSA", def: "쿼리마다 모든 키가 아니라 고른 일부만 본다. DeepSeek-V3.2의 DSA(DeepSeek Sparse Attention)는 가벼운 lightning indexer로 top-k 토큰을 골라 그 토큰만 어텐션하고, DeepSeek-V4는 KV를 4배 압축한 뒤 블록을 고르는 CSA와 128배 압축 후 dense로 보는 HCA 층을 교대한다.", ch: "attention" },
+    { ko: "어텐션 싱크", en: "Attention sink", abbr: "", def: "소프트맥스 가중치 합이 반드시 1이라, 볼 곳이 없는 헤드가 첫 토큰 같은 특정 위치에 가중치를 몰아 '버리는' 현상, 또는 이를 위한 장치. gpt-oss(2025)는 헤드마다 학습된 싱크 로짓을 소프트맥스 분모에만 더해 아무 토큰도 보지 않을 수 있게 한다.", ch: "attention" },
+    { ko: "슬라이딩 윈도우 어텐션", en: "Sliding window attention", abbr: "SWA", def: "각 토큰이 최근 W개 토큰만 보도록 마스크를 띠 모양으로 제한한 어텐션. KV 캐시가 W에서 멈춘다. gpt-oss는 윈도우 128의 SWA 층과 풀 어텐션 층을 1:1로 교대한다.", ch: "attention" },
+
+    // 06 Transformer
+    { ko: "세분화 MoE", en: "Fine-grained MoE", abbr: "", def: "큰 전문가 몇 개 대신 작은 전문가 수백 개를 두고 토큰마다 여러 개를 골라 조합의 폭을 넓힌 MoE. Qwen3.5-397B-A17B는 전문가 512개 중 라우팅 10개 + 공유 1개만 활성화한다(2026).", ch: "transformer" },
+    { ko: "공유 전문가", en: "Shared expert", abbr: "", def: "라우터와 무관하게 모든 토큰이 항상 거치는 전문가. 공통 지식을 맡아 라우팅 전문가들이 더 특화되게 한다. Llama 4 Maverick·Qwen3.5·DeepSeek 계열이 쓰고, gpt-oss는 쓰지 않는다.", ch: "transformer" },
+    { ko: "보조 손실 없는 부하 균형", en: "Auxiliary-loss-free load balancing", abbr: "", def: "부하 균형 손실 대신 전문가마다 편향 b를 라우팅 점수에 더해 top-k 선택에만 쓰고, 과부하 전문가는 b를 낮추고 덜 쓰인 전문가는 높인다(DeepSeek-V3, 2024). 균형용 손실이 본 학습 목표를 방해하지 않는다.", ch: "transformer" },
+    { ko: "활성 파라미터", en: "Active parameters", abbr: "", def: "MoE에서 토큰 하나를 처리할 때 실제로 계산에 쓰이는 파라미터 수. 연산량은 활성, 메모리는 총 파라미터를 따른다. gpt-oss-120b 117B 총/5.1B 활성, DeepSeek-V4-Pro 1.6T 총/49B 활성이다.", ch: "transformer" },
+
+    // 07 LLM
+    { ko: "다중 토큰 예측", en: "Multi-token prediction", abbr: "MTP", def: "다음 토큰뿐 아니라 그다음 토큰들까지 추가 모듈로 함께 예측하게 학습해 학습 신호를 늘린다. DeepSeek-V3/V4가 쓰며, 추론 때는 MTP 모듈을 추측 디코딩의 초안기로 재사용할 수 있다.", ch: "llm" },
+
+    // 03 학습
+    { ko: "Muon 옵티마이저", en: "Muon (MomentUm Orthogonalized by Newton–Schulz)", abbr: "Muon", def: "2D 가중치 행렬의 모멘텀 업데이트를 Newton–Schulz 반복으로 직교화해(특이값을 모두 약 1로) 적용하는 옵티마이저. Kimi 'Muon is Scalable'(2025)은 AdamW 대비 약 2배 계산 효율을 보고했다. 임베딩·출력층·정규화 파라미터에는 보통 AdamW를 그대로 쓴다.", ch: "training" },
+    { ko: "뉴턴–슐츠 반복", en: "Newton–Schulz iteration", abbr: "NS", def: "X ← aX + b(XXᵀ)X + c(XXᵀ)²X 같은 행렬 다항식을 몇 번 반복해 SVD 없이 UΣVᵀ를 UVᵀ에 가깝게 만드는 방법. 행렬곱만 쓰므로 GPU에서 빠르다. Muon의 핵심 연산이다.", ch: "training" },
+    { ko: "MuonClip / QK-Clip", en: "MuonClip / QK-Clip", abbr: "", def: "Muon에 QK-Clip을 더한 것. 어떤 헤드의 최대 어텐션 로짓이 임계값을 넘으면 그 헤드의 W_Q·W_K를 줄여 로짓 폭주를 막는다. Kimi K2(1T 총/32B 활성, 15.5T 토큰, 2025)를 손실 스파이크 없이 학습했다.", ch: "training" },
+
+    // 08 생성
+    { ko: "EAGLE-3", en: "EAGLE-3", abbr: "", def: "대상 모델의 여러 층(저·중·고) 특징을 융합해 다음 토큰들을 예측하는 가벼운 드래프트 헤드로 추측 디코딩을 하는 방법(2025). 학습 때 자기 예측을 입력으로 다시 쓰는 'training-time test'로 수용률을 높여 약 2~6배 속도 향상이 보고됐다.", ch: "generation" },
+    { ko: "트리 드래프트", en: "Tree drafting / tree attention", abbr: "", def: "초안 토큰을 한 줄이 아니라 여러 가지를 갖는 트리로 제안하고, 트리 모양 어텐션 마스크로 큰 모델이 모든 가지를 한 번의 순전파로 검증하는 추측 디코딩 기법. 가장 길게 수락된 경로를 택한다(Medusa, EAGLE 계열).", ch: "generation" },
+    { ko: "디퓨전 언어 모델", en: "Diffusion language model", abbr: "dLLM", def: "왼쪽부터 한 토큰씩이 아니라, 마스크된 시퀀스를 T 스텝에 걸쳐 여러 위치 동시에 복원하며 생성하는 언어 모델. LLaDA(8B, 2.3T 토큰), Inception Labs Mercury, Google Gemini Diffusion(실험적, 2025)이 대표적이다. 2026년에도 주류는 자기회귀다.", ch: "generation" },
+
+    // 09 양자화
+    { ko: "E2M1", en: "FP4 E2M1", abbr: "FP4", def: "부호 1 + 지수 2 + 가수 1비트의 4비트 부동소수점. 표현값은 ±{0, 0.5, 1, 1.5, 2, 3, 4, 6}뿐이라 블록 스케일과 함께 써야 한다. NVFP4와 MXFP4의 원소 형식이다.", ch: "quantization" },
+    { ko: "E8M0", en: "E8M0 scale", abbr: "", def: "가수 없이 지수 8비트만 있는 스케일 형식으로, 2의 거듭제곱(약 2⁻¹²⁷~2¹²⁷)만 표현한다. 곱셈이 지수 덧셈이라 하드웨어가 싸지만, 스케일이 최대 2배까지 어긋나 해상도를 잃는다. MX 형식의 공용 스케일이다.", ch: "quantization" },
+    { ko: "블록 스케일링", en: "Block scaling (microscaling)", abbr: "MX", def: "원소 16~32개 같은 작은 블록마다 공용 스케일을 두는 양자화. 그룹 양자화를 하드웨어 형식으로 고정한 것으로, Blackwell 텐서 코어가 블록 스케일 FP4·FP8 행렬곱을 직접 지원한다.", ch: "quantization" },
+    { ko: "MXFP4", en: "OCP microscaling FP4", abbr: "MXFP4", def: "E2M1 원소 32개 + E8M0 스케일 1개(OCP MX 표준). 유효 4 + 8/32 = 4.25비트. gpt-oss(2025)는 MoE 가중치를 MXFP4로 배포해 120b 모델을 80 GB GPU 한 장에 올린다.", ch: "quantization" },
+    { ko: "NVFP4", en: "NVIDIA FP4", abbr: "NVFP4", def: "E2M1 원소 16개 + FP8(E4M3) 스케일 1개, 그 위에 텐서 단위 FP32 스케일. 유효 4 + 8/16 = 4.5비트. 블록이 작고 스케일이 정밀해 MXFP4보다 정확하다. NVIDIA는 12B 모델을 10T 토큰 NVFP4로 사전학습해 FP8에 근접한 손실을 보고했다(2025).", ch: "quantization" },
+
+    // 10 RAG
+    { ko: "후기 상호작용", en: "Late interaction (ColBERT)", abbr: "", def: "문서·질문을 토큰별 벡터들로 따로 인코딩해 두고, 질문 토큰마다 가장 비슷한 문서 토큰 점수(MaxSim)를 더해 관련도를 매긴다(ColBERT, 2020). 바이 인코더보다 정밀하고 크로스 인코더보다 빠르지만 색인이 커진다.", ch: "rag" },
+    { ko: "에이전트형 RAG", en: "Agentic RAG", abbr: "", def: "검색을 도구로 주고 모델이 질의 재작성·다중 홉 검색·충분성 판단을 스스로 반복하게 하는 RAG. 1M 토큰 컨텍스트 시대에도 비용·지연·정확도 때문에 검색은 여전히 쓰인다.", ch: "rag" },
+
+    // 11 추론 모델과 에이전트
+    { ko: "추론 모델", en: "Reasoning model", abbr: "", def: "답하기 전에 긴 생각(추론) 토큰을 생성하도록 강화학습으로 훈련된 LLM(OpenAI o1, DeepSeek-R1 등). 출력의 상당 부분이 추론 토큰이라 디코드 시간과 KV 길이가 늘어난다.", ch: "agent" },
+    { ko: "검증 가능한 보상 강화학습", en: "Reinforcement learning with verifiable rewards", abbr: "RLVR", def: "수학 정답 비교, 코드 단위 테스트처럼 규칙으로 채점할 수 있는 과제에서 보상 모델 없이 규칙 기반 보상으로 RL을 하는 방법. DeepSeek-R1(2025)에서 자기 검증·반성 같은 행동이 창발했다.", ch: "agent" },
+    { ko: "그룹 상대 정책 최적화", en: "Group relative policy optimization", abbr: "GRPO", def: "프롬프트마다 응답 G개를 샘플링해 보상 rᵢ를 받고, 그룹 안에서 Aᵢ = (rᵢ − mean)/std로 정규화한 어드밴티지로 정책을 갱신한다. 가치망(critic)이 필요 없고 KL 페널티로 기준 모델에서 너무 멀어지지 않게 한다(DeepSeekMath 2024, R1 2025).", ch: "agent" },
+    { ko: "검증기", en: "Verifier", abbr: "", def: "응답이 맞는지 판정하는 프로그램이나 모델. 정답 일치 검사기·테스트 실행기(규칙 기반) 또는 학습된 보상 모델이 있으며, RLVR의 보상과 테스트타임 후보 선택(best-of-N)에 쓰인다.", ch: "agent" },
+    { ko: "보상 해킹", en: "Reward hacking", abbr: "", def: "정책이 진짜 목표 대신 보상 함수의 허점을 공략해 점수만 올리는 현상(예: 테스트를 고치거나 형식만 맞추기). 검증기를 엄격히 하고 KL 페널티·사람 검토로 막는다.", ch: "agent" },
+    { ko: "테스트타임 계산", en: "Test-time compute", abbr: "", def: "학습이 아니라 추론 때 더 많은 연산(더 긴 생각, 여러 번 샘플링, 검증)을 써서 정확도를 높이는 것. 추론 모델은 생각 길이가 늘수록 어려운 문제 정답률이 오르는 테스트타임 스케일링을 보인다.", ch: "agent" },
+    { ko: "자기 일관성", en: "Self-consistency", abbr: "", def: "같은 질문에 추론 경로를 여러 개 샘플링하고 최종 답을 다수결로 정하는 방법(Wang 등 2022). 개별 답의 정답 확률이 0.5보다 크고 오류가 서로 독립에 가까우면 샘플 수에 따라 정확도가 오른다.", ch: "agent" },
+    { ko: "생각 예산", en: "Thinking budget", abbr: "", def: "추론 모델이 답 전에 쓸 수 있는 추론 토큰 수의 상한. 크게 잡으면 정확도가 오르지만 지연·비용이 늘어, 작업 난이도에 맞춰 조절한다.", ch: "agent" },
+    { ko: "증류", en: "Knowledge distillation", abbr: "", def: "큰 교사 모델의 출력(확률 분포나 생성 결과)으로 작은 학생 모델을 학습시키는 것. DeepSeek-R1-Distill 계열은 R1의 추론 흔적으로 소형 모델을 SFT해 추론 능력을 옮겼다.", ch: "agent" },
+    { ko: "에이전트", en: "AI agent", abbr: "", def: "LLM이 목표를 받아 생각 → 도구 호출 → 관찰 결과 읽기를 반복하며 여러 단계 작업을 스스로 수행하는 시스템. 모델 + 도구 + 루프(오케스트레이터) + 기억으로 구성된다.", ch: "agent" },
+    { ko: "함수 호출", en: "Function calling / tool use", abbr: "", def: "모델이 정해진 스키마(보통 JSON)로 도구 이름과 인자를 출력하면, 바깥 프로그램이 실제로 실행하고 결과를 다시 컨텍스트에 붙여 주는 방식. 모델은 직접 실행하지 않는다.", ch: "agent" },
+    { ko: "ReAct", en: "Reasoning + Acting", abbr: "ReAct", def: "생각(Thought) → 행동(Action, 도구 호출) → 관찰(Observation)을 번갈아 기록하며 문제를 푸는 프롬프팅 패턴(Yao 등 2022). 오늘날 도구 사용 에이전트 루프의 원형이다.", ch: "agent" },
+    { ko: "모델 컨텍스트 프로토콜", en: "Model Context Protocol", abbr: "MCP", def: "에이전트(클라이언트)가 외부 도구·데이터(서버)에 붙는 개방형 표준(Anthropic, 2024년 11월). JSON-RPC로 통신하며 서버가 tools·resources·prompts를 노출한다. 2025년 OpenAI·Google 등도 지원했다.", ch: "agent" },
+    { ko: "A2A 프로토콜", en: "Agent2Agent protocol", abbr: "A2A", def: "Google이 2025년 공개한, 서로 다른 에이전트끼리 능력을 알리고 작업을 위임·주고받는 개방형 프로토콜. MCP가 '에이전트 ↔ 도구'라면 A2A는 '에이전트 ↔ 에이전트'다.", ch: "agent" },
+    { ko: "인터리브드 사고", en: "Interleaved thinking", abbr: "", def: "도구 호출 결과를 받은 뒤에도 추론을 이어 가며 생각과 도구 호출을 번갈아 하는 방식. DeepSeek-V4 등 에이전트용 추론 모델이 지원한다.", ch: "agent" },
+    { ko: "컨텍스트 엔지니어링", en: "Context engineering", abbr: "", def: "지시문·도구 정의·검색 결과·대화 기억 중 무엇을 어떤 순서와 분량으로 컨텍스트에 넣을지 설계하는 일. 도구 정의 수백 개가 컨텍스트를 잠식하는 문제를 압축·요약·서브에이전트로 푼다.", ch: "agent" },
+    { ko: "프롬프트 인젝션", en: "Prompt injection", abbr: "", def: "웹 페이지·문서·도구 결과 안에 숨긴 지시로 모델이 원래 사용자의 의도와 다른 행동(정보 유출, 위험한 도구 호출)을 하게 만드는 공격. 도구 권한 최소화, 신뢰 경계 분리, 사람 확인으로 완화한다.", ch: "agent" },
+
+    // 12 서빙 설계
+    { ko: "분리 서빙", en: "Prefill/decode disaggregation", abbr: "", def: "연산 바운드인 프리필과 대역폭 바운드인 디코드를 서로 다른 GPU 풀에서 실행하고 KV 캐시를 네트워크로 넘기는 서빙 구조. 긴 프롬프트가 다른 요청의 디코딩을 막지 않는다. NVIDIA Dynamo, llm-d, vLLM, SGLang 등이 지원한다.", ch: "design" },
+    { ko: "KV 캐시 전송 (NIXL)", en: "KV cache transfer / NIXL", abbr: "NIXL", def: "분리 서빙에서 프리필 GPU가 만든 KV 캐시를 디코드 GPU로 RDMA·NVLink로 옮기는 단계. NIXL(NVIDIA Inference Xfer Library)은 Dynamo가 쓰는 전송 라이브러리다. 요청당 KV 크기가 전송 비용을 결정한다.", ch: "design" },
+    { ko: "프리픽스 캐싱", en: "Prefix caching", abbr: "", def: "시스템 프롬프트·도구 정의·이전 대화처럼 요청 간 공통 앞부분의 KV 캐시를 저장해 두고 재사용해 프리필을 건너뛰는 기법. 멀티턴 에이전트에서 TTFT와 비용을 크게 줄인다.", ch: "design" },
+    { ko: "KV 캐시 오프로딩", en: "KV cache offloading / tiering", abbr: "", def: "당장 쓰지 않는 KV 캐시를 HBM → CPU DRAM → SSD 계층으로 내려 보관했다가 필요할 때 다시 올리는 기법(LMCache 등). 재계산보다 읽어 오는 것이 싸면 이득이다.", ch: "design" },
+    { ko: "Blackwell", en: "NVIDIA Blackwell (B200/B300)", abbr: "", def: "Hopper 다음 NVIDIA GPU 세대(2024~2025). B200은 HBM3E 약 180~192 GB, 약 8 TB/s이고 2세대 Transformer Engine으로 FP4를 지원한다. B300(Blackwell Ultra)은 HBM3E 288 GB다.", ch: "design" },
+    { ko: "HBM4", en: "High Bandwidth Memory 4", abbr: "HBM4", def: "스택당 인터페이스를 2,048비트로 HBM3E(1,024비트)의 두 배로 넓혀 스택당 2 TB/s 이상을 내는 HBM 세대(2026 양산, SK hynix·삼성·Micron).", ch: "design" },
+    { ko: "Vera Rubin", en: "NVIDIA Vera Rubin", abbr: "", def: "Blackwell 다음 NVIDIA 플랫폼(2026 하반기 공급). Rubin GPU 하나에 HBM4 288 GB, 약 19~22 TB/s(제품 페이지 19.2 TB/s), NVFP4 추론 약 50 PFLOPS(희소 기준, NVIDIA 발표치). NVL72 랙은 GPU 72개 + Vera CPU 36개, HBM4 약 20.7 TB다.", ch: "design" },
   ];
 
   /* =============================================================== 용어집 렌더 */
@@ -320,6 +381,17 @@ https://creativecommons.org/licenses/by/4.0/
   TERMS.forEach(function (t) { t._key = norm(t.ko + " " + t.en + " " + t.abbr); t._def = norm(t.def); t._ini = initial(t.ko); });
 
   var qEl = document.getElementById("gl-q"), listEl = document.getElementById("gl-list"), countEl = document.getElementById("gl-count");
+  // 챕터 칩은 AB.CHAPTERS에서 생성(장 추가·번호 변경에 자동 대응)
+  var CHIP = { vector: "벡터", neuron: "뉴런", training: "학습", embedding: "임베딩", attention: "어텐션", transformer: "Transformer", llm: "LLM", generation: "생성", quantization: "양자화", rag: "RAG", agent: "에이전트", design: "서빙 설계" };
+  (function () {
+    var box = document.getElementById("gl-ch");
+    AB.CHAPTERS.forEach(function (c) {
+      if (!TERMS.some(function (t) { return t.ch === c.slug; })) return;
+      var b = document.createElement("button");
+      b.type = "button"; b.dataset.value = c.slug; b.textContent = c.num + " " + (CHIP[c.slug] || c.title);
+      box.appendChild(b);
+    });
+  })();
   var chSel = AB.seg("gl-ch", renderGlossary), sortSel = AB.seg("gl-sort", renderGlossary);
   qEl.addEventListener("input", renderGlossary);
 
@@ -364,9 +436,10 @@ https://creativecommons.org/licenses/by/4.0/
     { ch: "training", q: "어휘 50,257개(GPT-2)인 언어 모델이 학습 초기에 모든 토큰을 균등 확률로 예측한다면 교차 엔트로피 손실은 약 얼마인가?", o: ["약 1.0", "약 4.7", "약 10.8", "약 50,257"], a: 2, e: "−ln(1/50257) = ln 50257 ≈ 10.8 nat. 학습 곡선이 10.8 근처에서 시작해 내려가는 것이 정상이며, 이보다 크게 시작하면 초기화에 문제가 있다는 신호다." },
     { ch: "training", q: "BF16 혼합 정밀도 + Adam 학습에서 파라미터 하나당 필요한 메모리(가중치·기울기·옵티마이저 상태, 활성값 제외)는 대략?", o: ["2바이트", "4바이트", "8바이트", "16바이트"], a: 3, e: "BF16 가중치 2 + BF16 기울기 2 + FP32 마스터 가중치 4 + Adam m 4 + v 4 = 16바이트. 8B 모델이면 약 128 GB로, 추론(약 16 GB)의 8배다." },
     { ch: "embedding", q: "Llama 3 8B(어휘 128,256, d = 4,096)의 입력 임베딩 행렬 파라미터 수는 대략?", o: ["약 5,000만", "약 2.1억", "약 5.25억", "약 52억"], a: 2, e: "128,256 × 4,096 ≈ 5.25억. Llama 3 8B는 입력 임베딩과 출력층을 공유하지 않으므로 같은 크기의 출력 행렬이 하나 더 있다(합 약 10.5억)." },
-    { ch: "embedding", q: "BPE 토크나이저의 어휘를 만드는 방법으로 옳은 것은?", o: ["사전에 있는 단어만 토큰으로 쓴다", "가장 자주 붙어 나오는 기호 쌍을 반복해서 하나로 병합한다", "모든 글자를 고정 길이 3글자씩 자른다", "임베딩이 비슷한 단어끼리 묶는다"], a: 1, e: "바이트(또는 글자)에서 시작해 말뭉치에서 가장 빈번한 인접 쌍을 새 토큰으로 병합하는 과정을 원하는 어휘 크기까지 반복한다. GPT-2는 병합 50,000회 + 바이트 256 + 특수 토큰 1 = 50,257이다." },
     { ch: "attention", q: "어텐션 점수 QKᵀ를 √d_k로 나누는 가장 중요한 이유는?", o: ["계산을 빠르게 하려고", "내적의 분산이 d_k에 비례해 커져 소프트맥스가 한 토큰으로 포화되는 것을 막으려고", "음수 점수를 없애려고", "인과 마스크를 적용하려고"], a: 1, e: "원소가 평균 0·분산 1인 무작위 벡터의 내적은 분산이 d_k다. d_k = 128이면 표준편차가 약 11이라 소프트맥스가 거의 원-핫이 되고 기울기가 사라진다. √d_k로 나누면 분산이 1로 돌아온다." },
     { ch: "attention", q: "Llama 3 8B는 쿼리 헤드 32개, KV 헤드 8개(GQA)를 쓴다. 같은 구조의 MHA(KV 헤드 32개)와 비교한 KV 캐시 크기는?", o: ["같다", "1/2", "1/4", "1/32"], a: 2, e: "KV 캐시는 KV 헤드 수에 비례하므로 8/32 = 1/4이다. 쿼리 헤드 4개가 K·V 한 쌍을 공유한다. 품질 손실은 작고 디코드 메모리 대역폭이 크게 준다." },
+    { ch: "attention", q: "DeepSeek-V3의 MLA는 층·토큰당 잠재 벡터 512차원 + RoPE용 64차원만 캐시한다. 같은 모델을 MHA(128헤드 × 128차원, K와 V 따로)로 캐시할 때와 비교하면 KV 캐시는 대략?", o: ["약 1/4", "약 1/8", "약 1/57", "약 1/512"], a: 2, e: "MHA는 2 × 128 × 128 = 32,768개, MLA는 512 + 64 = 576개 → 576/32,768 ≈ 1/57. 대신 쓸 때 잠재 벡터를 업프로젝션해야 하지만 흡수 트릭으로 W_Q·W_O에 합칠 수 있어, 메모리 대역폭이 병목인 디코드에서 크게 이득이다." },
+    { ch: "attention", q: "Qwen3.5처럼 [선형 어텐션(Gated DeltaNet) 3층 + 풀 어텐션 1층]을 반복하는 3:1 하이브리드 모델에서, 같은 층 수의 순수 풀 어텐션 모델 대비 긴 컨텍스트 KV 캐시는 대략?", o: ["같다", "약 3/4", "약 1/4 (선형 층은 고정 크기 상태만 가짐)", "0 (KV 캐시가 없음)"], a: 2, e: "선형 어텐션 층은 길이와 무관한 고정 크기 상태 S만 들고 있으므로, 길이에 비례해 커지는 KV 캐시는 풀 어텐션 층(4층 중 1층)에만 생긴다. 컨텍스트가 길수록 전체 메모리는 1/4에 가까워진다." },
     { ch: "transformer", q: "d = 768, FFN 4배, 표준 MHA인 Transformer 블록 하나의 파라미터 수(편향·정규화 제외)는 대략?", o: ["약 59만", "약 236만", "약 708만", "약 2,830만"], a: 2, e: "어텐션 Q·K·V·O 4d² + FFN 2 × d × 4d = 8d² → 12d² = 12 × 589,824 ≈ 708만. GPT-2 small은 이것이 12층 ≈ 8,500만 + 임베딩 약 3,900만 ≈ 1.24억이다." },
     { ch: "transformer", q: "Mixtral 8x7B(전문가 8개 중 토큰당 2개 활성)가 '총 약 47B인데 연산은 13B급'인 이유는?", o: ["어텐션 층이 없어서", "토큰마다 라우터가 고른 2개 전문가 FFN만 실행하고, 어텐션 등은 공유하기 때문", "4비트로 양자화되어 있어서", "층 수가 1/4이라서"], a: 1, e: "MoE는 FFN만 전문가로 나눈다. 토큰당 2/8 전문가만 계산하므로 활성 파라미터는 약 12.9B다. 다만 모든 전문가 가중치를 메모리에 올려야 하므로 메모리는 47B급이 든다." },
     { ch: "llm", q: "Chinchilla 스케일링 결과에 따르면 70B 파라미터 모델의 연산 최적 학습 토큰 수는 대략?", o: ["약 70B", "약 300B", "약 1.4T", "약 15T"], a: 2, e: "파라미터당 약 20토큰 → 70B × 20 = 1.4T. Chinchilla(70B, 1.4T)는 4배 큰 Gopher(280B, 300B 토큰)를 이겼다. Llama 3 8B의 15T는 추론 효율을 위해 최적보다 훨씬 오래 학습한 예다." },
@@ -375,8 +448,11 @@ https://creativecommons.org/licenses/by/4.0/
     { ch: "generation", q: "Llama 3 8B(32층, KV 헤드 8, d_head 128)를 BF16 KV 캐시로 8,192토큰 처리할 때 요청 하나의 KV 캐시 크기는?", o: ["약 128 MiB", "약 1 GiB", "약 4 GiB", "약 32 GiB"], a: 1, e: "토큰당 2(K,V) × 32 × 8 × 128 × 2바이트 = 131,072 B = 128 KiB. × 8,192 = 1 GiB. 동시 요청 32개면 32 GiB로, 가중치(16 GB)보다 커진다." },
     { ch: "quantization", q: "FP8 E4M3 형식이 표현할 수 있는 최댓값(유한값)은?", o: ["127", "448", "65,504", "57,344"], a: 1, e: "E4M3는 지수 4비트·가수 3비트이며 NaN 하나만 예약해 최대 448(= 1.75 × 2⁸)이다. 57,344는 E5M2, 65,504는 FP16의 최댓값이다." },
     { ch: "quantization", q: "INT4 가중치를 128개 그룹마다 FP16 스케일 하나로 양자화하면 가중치당 실효 비트 수는?", o: ["4.0", "4.125", "4.5", "5.0"], a: 1, e: "4 + 16/128 = 4.125비트. 영점(zero-point)까지 그룹마다 저장하면 조금 더 늘어난다. 그룹이 작을수록 정확하지만 메타데이터 오버헤드가 커진다." },
+    { ch: "quantization", q: "NVFP4는 E2M1 원소 16개마다 FP8(E4M3) 스케일 하나를 둔다(텐서 단위 스케일은 무시). MXFP4는 32개마다 E8M0 스케일 하나다. 두 형식의 원소당 유효 비트는?", o: ["둘 다 4.0", "NVFP4 4.5, MXFP4 4.25", "NVFP4 4.25, MXFP4 4.5", "NVFP4 5.0, MXFP4 4.5"], a: 1, e: "NVFP4: 4 + 8/16 = 4.5비트, MXFP4: 4 + 8/32 = 4.25비트. NVFP4는 비트를 조금 더 쓰는 대신 블록이 작고 스케일이 2의 거듭제곱이 아닌 E4M3라 오차가 작다." },
     { ch: "rag", q: "청킹에서 청크 사이에 오버랩을 두는 주된 이유는?", o: ["색인 크기를 줄이려고", "경계에서 문장·사실이 잘려 어느 청크에도 온전히 담기지 않는 문제를 줄이려고", "임베딩 차원을 늘리려고", "BM25를 쓸 수 없게 하려고"], a: 1, e: "고정 길이로 자르면 핵심 문장이 두 청크에 반씩 걸칠 수 있다. 오버랩은 경계 근처 내용을 양쪽에 중복 저장해 검색 누락을 줄이는 대신, 색인 크기와 중복 결과가 늘어난다." },
     { ch: "rag", q: "하이브리드 검색에서 RRF(역순위 융합)를 쓰는 장점으로 가장 알맞은 것은?", o: ["BM25 점수와 코사인 점수를 같은 척도로 정규화할 필요 없이 순위만으로 결합한다", "벡터 DB 없이 검색할 수 있다", "LLM 생성 속도가 빨라진다", "정답 문서를 항상 1위로 만든다"], a: 0, e: "score(d) = Σ 1/(k + rank), 보통 k = 60. BM25는 0~수십, 코사인은 −1~1처럼 척도가 달라도 순위만 쓰므로 간단하고 견고하다. 두 목록 모두에서 상위인 문서가 위로 올라온다." },
+    { ch: "agent", q: "GRPO에서 한 프롬프트에 응답 4개를 샘플링해 검증 보상 r = (1, 0, 0, 1)을 얻었다. 그룹 정규화 어드밴티지 Aᵢ = (rᵢ − mean)/std (모표준편차)는?", o: ["(1, 0, 0, 1)", "(0.5, −0.5, −0.5, 0.5)", "(1, −1, −1, 1)", "(2, −2, −2, 2)"], a: 2, e: "mean = 0.5, std = 0.5 → (1 − 0.5)/0.5 = +1, (0 − 0.5)/0.5 = −1. 맞힌 응답의 토큰은 확률을 높이고 틀린 응답은 낮춘다. 그룹 평균이 기준선 역할을 하므로 PPO처럼 가치망(critic)을 따로 학습할 필요가 없다. 4개가 모두 맞거나 모두 틀리면 어드밴티지가 0이라 학습 신호가 없다." },
+    { ch: "agent", q: "MCP(Model Context Protocol)에 대한 설명으로 옳은 것은?", o: ["모델 가중치를 압축하는 양자화 형식이다", "에이전트(클라이언트)가 외부 도구·데이터(서버)에 붙는 표준으로, 서버가 tools·resources·prompts를 JSON-RPC로 노출한다", "GPU 사이 KV 캐시를 전송하는 RDMA 라이브러리다", "모델이 도구 코드를 가중치 안에서 직접 실행하게 하는 학습법이다"], a: 1, e: "MCP는 Anthropic이 2024년 11월 공개한 개방형 프로토콜이다. 도구마다 따로 통합 코드를 짜지 않고, MCP 서버 하나를 만들면 여러 에이전트·앱이 같은 방식으로 붙는다. 실제 실행은 언제나 바깥 프로그램(서버)이 하고, 모델은 호출할 도구와 인자를 출력할 뿐이다." },
     { ch: "design", q: "배치 1 디코드에서 Llama 3 8B BF16(가중치 약 16 GB)을 H100 SXM(약 3.35 TB/s)으로 돌릴 때 토큰 생성 속도의 이론적 상한은?", o: ["약 21 토큰/s", "약 210 토큰/s", "약 2,100 토큰/s", "약 21,000 토큰/s"], a: 1, e: "토큰마다 가중치 전체를 읽어야 하므로 16 GB / 3.35 TB/s ≈ 4.8 ms → 약 210 토큰/s. 연산(약 16 GFLOP/토큰)은 피크의 1%도 쓰지 않는 전형적인 대역폭 바운드다. 배치를 키우거나 양자화하면 이 한계가 올라간다." },
   ];
 
@@ -452,16 +528,16 @@ https://creativecommons.org/licenses/by/4.0/
 
   var RANKS = [
     [0, "AI 입문자", "이제 막 벡터와 내적을 만났다. 1장부터 차근차근 시뮬레이터를 만져 보자."],
-    [8, "토큰 수집가", "기본 개념은 잡혔다. 틀린 챕터를 골라 다시 읽으면 금방 올라간다."],
-    [14, "모델 엔지니어", "모델 카드와 서빙 스펙을 읽고 메모리·연산 트레이드오프를 논할 수 있는 수준이다."],
-    [18, "LLM 아키텍트!", "내적에서 서빙까지 꿰뚫고 있다. 이제 실제 논문과 오픈 모델 코드를 읽어 볼 차례다."],
+    [10, "토큰 수집가", "기본 개념은 잡혔다. 틀린 챕터를 골라 다시 읽으면 금방 올라간다."],
+    [17, "모델 엔지니어", "모델 카드와 서빙 스펙을 읽고 메모리·연산 트레이드오프를 논할 수 있는 수준이다."],
+    [22, "LLM 아키텍트!", "내적에서 서빙까지 꿰뚫고 있다. 이제 실제 논문과 오픈 모델 코드를 읽어 볼 차례다."],
   ];
   function perChapter() {
     var m = {};
     fq.results.forEach(function (r) { (m[r.ch] = m[r.ch] || { n: 0, ok: 0 }); m[r.ch].n++; if (r.ok) m[r.ch].ok++; });
     return AB.CHAPTERS.filter(function (c) { return m[c.slug]; }).map(function (c) { return { c: c, n: m[c.slug].n, ok: m[c.slug].ok }; });
   }
-  var SHORT = { vector: "벡터·행렬", neuron: "뉴런·신경망", training: "학습", embedding: "토큰·임베딩", attention: "어텐션", transformer: "Transformer", llm: "LLM", generation: "생성·디코딩", quantization: "양자화", rag: "RAG", design: "서빙 설계" };
+  var SHORT = { vector: "벡터·행렬", neuron: "뉴런·신경망", training: "학습", embedding: "토큰·임베딩", attention: "어텐션", transformer: "Transformer", llm: "LLM", generation: "생성·디코딩", quantization: "양자화", rag: "RAG", agent: "추론·에이전트", design: "서빙 설계" };
   function drawResult(ctx, w, h) {
     var P = AB.palette(), rows = perChapter();
     var left = Math.min(150, Math.max(92, w * 0.32)), right = 46, top = 12, rh = (h - top - 8) / Math.max(1, rows.length);
@@ -495,7 +571,7 @@ https://creativecommons.org/licenses/by/4.0/
     var weak = perChapter().filter(function (r) { return r.ok < r.n; });
     fq.el("fq-review").innerHTML = weak.length
       ? "다시 볼 챕터: " + weak.map(function (r) { return '<a href="../chapters/' + r.c.slug + '.html">Ch.' + r.c.num + " " + esc(r.c.title) + "</a>"; }).join(" · ")
-      : "모든 챕터 만점! 11장 플레이그라운드에서 자신만의 LLM 서빙 구성을 설계해 보자.";
+      : "모든 챕터 만점! 12장 플레이그라운드에서 자신만의 LLM 서빙 구성을 설계해 보자.";
     var rowsN = perChapter().length;
     if (!fq.cv) fq.cv = AB.canvas("#cv-fq", drawResult, { height: rowsN * 28 + 20 });
     else fq.cv.resize();

@@ -459,7 +459,7 @@ https://creativecommons.org/licenses/by/4.0/
     </table></div>
     <p>표의 마지막 열은 '파라미터 수 × 2'라는 어림셈이다. 파라미터 하나당 토큰마다 곱셈-덧셈 한 번(2 FLOPs)을 하기 때문이다(GPT-2 small 약 124M, Llama 3 8B 약 8.03B 파라미터). 즉 <strong>LLM 추론 연산의 대부분은 행렬곱</strong>이고, 어텐션 점수 계산 \(QK^\top\)과 가중합 \(AV\)도 행렬곱이다(<a href="attention.html">5장</a>).</p>
     <h3>GPU는 행렬곱 기계다</h3>
-    <p>행렬곱은 하드웨어 입장에서 이상적인 작업이다. 결과 칸들이 서로 독립이라 대규모 병렬화가 쉽고, 같은 데이터를 여러 번 재사용하므로 메모리에서 가져온 바이트당 연산이 많다. \(n\times n\) 행렬 두 개를 곱하면 데이터는 \(O(n^2)\)인데 연산은 \(O(n^3)\)이다. NVIDIA H100 SXM은 BF16 행렬곱 전용 유닛(Tensor Core)으로 약 989 TFLOPS(dense)를 내지만, 메모리 대역폭은 약 3.35 TB/s다. 바이트당 약 300 FLOPs 이상을 해야 연산기가 쉬지 않는다. 배치가 작은 LLM 디코딩은 이 조건을 못 채워 메모리 대역폭에 묶이는데, 이것이 <a href="generation.html">8장</a>의 KV 캐시와 <a href="design.html">11장</a> 루프라인 분석의 출발점이다.</p>
+    <p>행렬곱은 하드웨어 입장에서 이상적인 작업이다. 결과 칸들이 서로 독립이라 대규모 병렬화가 쉽고, 같은 데이터를 여러 번 재사용하므로 메모리에서 가져온 바이트당 연산이 많다. \(n\times n\) 행렬 두 개를 곱하면 데이터는 \(O(n^2)\)인데 연산은 \(O(n^3)\)이다. NVIDIA H100 SXM은 BF16 행렬곱 전용 유닛(Tensor Core)으로 약 989 TFLOPS(dense)를 내지만, 메모리 대역폭은 약 3.35 TB/s다. 바이트당 약 300 FLOPs 이상을 해야 연산기가 쉬지 않는다. 배치가 작은 LLM 디코딩은 이 조건을 못 채워 메모리 대역폭에 묶이는데, 이것이 <a href="generation.html">8장</a>의 KV 캐시와 <a href="design.html">12장</a> 루프라인 분석의 출발점이다.</p>
   </section>
 
   <!-- ============================================================ 7 -->
@@ -558,6 +558,25 @@ https://creativecommons.org/licenses/by/4.0/
     <p>PCA는 '선형' 차원 축소다. 투영은 행렬곱 하나이므로 빠르고 되돌리기도 쉽다(\(UU^\top\)로 복원). 신경망의 많은 부분도 이렇게 해석할 수 있다. 어텐션 헤드는 \(d\)차원 토큰 벡터를 \(d_k = d/h\)차원 부분공간으로 투영해서 그 안에서만 비교하고(<a href="attention.html">5장</a>), LoRA는 가중치 변화가 낮은 랭크 부분공간에 있다고 가정한다. 이후 장에서 "투영"이라는 말이 나오면 <strong>행렬곱으로 다른(대개 더 작은) 공간의 좌표를 구하는 것</strong>이라고 읽으면 된다.</p>
   </section>
 
+  <!-- ============================================================ precision -->
+  <section id="precision">
+    <h2>실전의 벡터: 몇 비트로 저장하고 계산할까</h2>
+    <p>지금까지 벡터의 성분은 그냥 "실수"였다. 하지만 컴퓨터에서 실수 하나는 정해진 비트 수로 저장되고, 그 비트 수가 곧 메모리·대역폭·연산 속도를 정한다. 이 장의 연산들이 실제 시스템에서 어떤 정밀도로 돌아가는지 짧게 짚어 두자. 자세한 비트 구조와 양자화 방법은 <a href="quantization.html">9장</a>에서 다룬다.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>성분 형식</th><th class="num">성분당</th><th class="num">1,024차원 벡터 하나</th><th class="num">벡터 100만 개</th><th>내적은 이렇게 계산</th></tr></thead>
+      <tbody>
+        <tr><td>FP32</td><td class="num">32비트</td><td class="num">4,096 B</td><td class="num">약 4.1 GB</td><td>곱셈·덧셈 그대로</td></tr>
+        <tr><td>FP16 / BF16</td><td class="num">16비트</td><td class="num">2,048 B</td><td class="num">약 2.0 GB</td><td>곱은 16비트, 합은 보통 FP32로 누적</td></tr>
+        <tr><td>INT8 (스케일 1개 + 정수)</td><td class="num">8비트</td><td class="num">1,024 B</td><td class="num">약 1.0 GB</td><td>정수 곱을 INT32로 누적한 뒤 스케일을 한 번 곱함</td></tr>
+        <tr><td>이진(부호 1비트)</td><td class="num">1비트</td><td class="num">128 B</td><td class="num">약 128 MB</td><td>XOR 후 1의 개수 세기(popcount) = 해밍 거리</td></tr>
+      </tbody>
+    </table></div>
+    <p>핵심 관찰은 두 가지다. 첫째, <strong>내적은 저정밀 입력에 꽤 관대하다.</strong> 내적은 많은 곱의 합이라, 성분마다 생긴 작은 반올림 오차가 서로 다른 부호로 섞이며 상당 부분 상쇄된다(고차원에서 랜덤 오차 벡터가 거의 직교하는 것과 같은 이유다). 그래서 곱하는 입력은 8비트·4비트로 줄이고, <strong>합은 더 넓은 형식(INT32·FP32)으로 누적</strong>하는 것이 표준 설계다. 둘째, 정규화된 임베딩을 이진화하면 \(\mathbf a\cdot\mathbf b\) 대신 해밍 거리를 쓰게 되는데, 1,024비트 해밍 거리는 64비트 popcount 16번이면 끝나서 CPU에서도 매우 빠르다. 이진 벡터로 후보를 넓게 뽑고 원래 정밀도로 다시 점수를 매기는(rescoring) 2단 구조가 벡터 검색에서 흔하다(<a href="embedding.html">4장</a>, <a href="rag.html">10장</a>).</p>
+    <div class="callout deep"><strong>행렬곱 하드웨어도 같은 방향으로 간다</strong>
+      <p>GPU 텐서 코어는 세대마다 더 짧은 입력 형식을 지원해 왔다. H100(Hopper)은 FP8 행렬곱을 BF16 대비 약 2배 처리량으로 돌리고, Blackwell(B200 등, 2024~25)과 그 뒤의 Vera Rubin(2026)은 4비트 부동소수점(MXFP4·NVFP4) 행렬곱을 텐서 코어에서 직접 수행한다. 원리는 위 INT8과 같다. 16~32개 성분마다 스케일 하나를 붙인 4비트 블록끼리 곱하고, 결과는 FP32로 누적한다. 앞에서 본 "\(2mnk\) FLOPs짜리 행렬곱"을 바이트를 덜 읽고 더 많이 동시에 하려는 것이다. 형식의 세부(E2M1, 블록 크기, 스케일 형식)는 <a href="quantization.html">9장</a>에 있다.</p>
+    </div>
+  </section>
+
   <!-- ============================================================ summary -->
   <section class="keypoints" id="summary">
     <h2>핵심 정리</h2>
@@ -569,6 +588,7 @@ https://creativecommons.org/licenses/by/4.0/
       <li>신경망 층은 \(\mathbf y = W\mathbf x+\mathbf b\)이고, 실제로는 <code>(B, T, d)</code> 텐서의 마지막 축에 작용하는 큰 행렬곱이다. 데이터 재사용이 높은 행렬곱은 GPU Tensor Core에 이상적이다.</li>
       <li>고차원에서 랜덤 벡터는 거의 직교하며(\(\cos\)의 표준편차 \(\approx 1/\sqrt d\)), 거리는 집중되고 부피는 껍질에 몰린다.</li>
       <li>노름은 크기, L2 정규화는 방향만 남기기, RMSNorm은 \(\sqrt d\)배 된 L2 정규화다. 투영은 행렬곱이고, PCA는 공분산의 고유벡터로 분산을 최대한 보존하는 투영을 찾는다.</li>
+      <li>실제 시스템은 벡터를 FP16·INT8·이진·FP4처럼 짧은 형식으로 저장·계산한다. 내적은 입력 오차에 관대해서 "입력은 짧게, 누적은 넓게(INT32·FP32)"가 표준이며, 1,024차원 이진 벡터는 128바이트로 FP32의 1/32이다.</li>
     </ol>
   </section>
 
@@ -594,6 +614,9 @@ https://creativecommons.org/licenses/by/4.0/
       <div class="quiz-q"><p>6. 모든 임베딩을 L2 정규화해 두었다. 질의와의 '유클리드 거리가 작은 순'과 '코사인 유사도가 큰 순' 순위의 관계는?</p><div class="opts">
         <button class="opt">관계가 없다</button><button class="opt">정확히 반대다</button><button class="opt" data-correct>완전히 같다</button><button class="opt">상위 1개만 같다</button>
       </div><div class="quiz-exp">단위벡터끼리는 \(\lVert\mathbf a-\mathbf b\rVert^2 = 2 - 2\cos\theta\)다. 거리는 코사인의 단조 감소 함수이므로 순위가 완전히 같다. 내적 순위도 같다. 그래서 벡터 DB는 정규화 후 내적만 계산하곤 한다.</div></div>
+      <div class="quiz-q"><p>7. 1,024차원 임베딩 100만 개를 FP32 대신 부호만 남긴 이진 벡터로 저장하면 저장량과 유사도 계산은 어떻게 되는가?</p><div class="opts">
+        <button class="opt">약 4.1 GB → 약 1 GB, 내적을 그대로 계산</button><button class="opt" data-correct>약 4.1 GB → 약 128 MB, XOR + popcount로 해밍 거리를 계산</button><button class="opt">약 4.1 GB → 약 512 MB, 코사인을 FP4로 계산</button><button class="opt">저장량은 같고 계산만 빨라진다</button>
+      </div><div class="quiz-exp">FP32는 성분당 4바이트라 \(10^6\times1024\times4\) B ≈ 4.1 GB, 이진은 성분당 1비트라 1/32인 128 B/벡터, 합계 약 128 MB다. ±1 벡터의 내적은 \(d - 2\times\)해밍 거리이므로, 비트 XOR 후 1의 개수만 세면 된다. 정밀도 손실은 원래 벡터로 상위 후보만 다시 점수 매기는 rescoring으로 보완한다.</div></div>
     </div>
   </section>
 </main>

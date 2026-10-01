@@ -29,9 +29,9 @@ https://creativecommons.org/licenses/by/4.0/
   .path .steps { display: flex; flex-wrap: wrap; gap: 6px; }
   .path .steps a { font-family: var(--mono); font-size: 12px; padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
   .path .steps a:hover { text-decoration: none; filter: brightness(1.1); }
-  .numbers { display: grid; gap: 1px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); background: var(--border); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .numbers { display: grid; gap: 1px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); background: var(--border); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .numbers div { background: var(--bg-elev); padding: 18px 20px; }
-  .numbers b { display: block; font-family: var(--mono); font-size: 26px; letter-spacing: -0.02em; color: var(--text); }
+  .numbers b { display: block; font-family: var(--mono); font-size: 24px; white-space: nowrap; letter-spacing: -0.02em; color: var(--text); }
   .numbers span { color: var(--text-dim); font-size: 14px; }
   .hero-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
   .hero-badges span { font-size: 13px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); background: var(--bg-elev); }
@@ -52,13 +52,13 @@ https://creativecommons.org/licenses/by/4.0/
     <div>
       <div class="eyebrow">Interactive AI Textbook</div>
       <h1>벡터 하나에서<br><span class="grad">대규모 언어 모델까지</span></h1>
-      <p>ChatGPT가 문장을 이어 쓰는 원리는 생각보다 단순한 연산의 반복입니다. 숫자 목록(벡터)이 의미를 담고, 내적이 관계를 재고, 소프트맥스가 주의를 나눕니다. 임베딩 공간을 직접 돌려 보고, 어텐션 행렬을 손으로 고쳐 보고, 브라우저 안에서 작은 신경망을 학습시키며 Transformer와 LLM을 바닥부터 이해하는 교과서입니다.</p>
+      <p>ChatGPT가 문장을 이어 쓰는 원리는 생각보다 단순한 연산의 반복입니다. 숫자 목록(벡터)이 의미를 담고, 내적이 관계를 재고, 소프트맥스가 주의를 나눕니다. 임베딩 공간을 직접 돌려 보고, 어텐션 행렬을 손으로 고쳐 보고, 브라우저 안에서 작은 신경망을 학습시키며 Transformer와 LLM을 바닥부터 이해하는 교과서입니다. MoE·하이브리드 어텐션·FP4·추론 모델·에이전트까지, 2026년 지금의 모델이 실제로 어떻게 만들어지는지도 다룹니다.</p>
       <div class="cta">
         <a class="primary" href="chapters/vector.html">1장부터 시작하기 →</a>
         <a class="ghost" href="chapters/attention.html">어텐션 행렬 만져 보기</a>
       </div>
       <div class="hero-badges">
-        <span>12개 챕터</span><span>80개 시뮬레이터</span><span>브라우저 속 실제 계산</span><span>공대 학부 수준</span>
+        <span>13개 챕터</span><span>100개가 넘는 시뮬레이터</span><span>2026년 최신 동향 반영</span><span>브라우저 속 실제 계산</span><span>공대 학부 수준</span>
       </div>
     </div>
     <div class="hero-3d" id="hero3d"><span class="hint">드래그해서 돌려보세요 · 의미가 비슷한 단어끼리 모이고, 문장의 토큰들이 서로 주의를 기울입니다</span></div>
@@ -144,16 +144,17 @@ https://creativecommons.org/licenses/by/4.0/
       </g>
       <!-- 6 side: quant + rag + serving -->
       <g transform="translate(990,20)">
-        <rect width="118" height="48" rx="10" class="f-acc2-soft"/><text x="59" y="22" text-anchor="middle" class="t">양자화</text><text x="59" y="39" text-anchor="middle" class="t-mono">Ch.09</text>
-        <rect y="58" width="118" height="48" rx="10" class="f-acc2-soft"/><text x="59" y="80" text-anchor="middle" class="t">RAG</text><text x="59" y="97" text-anchor="middle" class="t-mono">Ch.10</text>
-        <rect y="116" width="118" height="48" rx="10" class="f-acc2-soft"/><text x="59" y="138" text-anchor="middle" class="t">서빙 설계</text><text x="59" y="155" text-anchor="middle" class="t-mono">Ch.11</text>
+        <rect width="118" height="38" rx="9" class="f-acc2-soft"/><text x="59" y="17" text-anchor="middle" class="t">양자화</text><text x="59" y="31" text-anchor="middle" class="t-mono">Ch.09</text>
+        <rect y="44" width="118" height="38" rx="9" class="f-acc2-soft"/><text x="59" y="61" text-anchor="middle" class="t">RAG</text><text x="59" y="75" text-anchor="middle" class="t-mono">Ch.10</text>
+        <rect y="88" width="118" height="38" rx="9" class="f-acc-soft"/><text x="59" y="105" text-anchor="middle" class="t">추론 · 에이전트</text><text x="59" y="119" text-anchor="middle" class="t-mono">Ch.11</text>
+        <rect y="132" width="118" height="38" rx="9" class="f-acc2-soft"/><text x="59" y="149" text-anchor="middle" class="t">서빙 설계</text><text x="59" y="163" text-anchor="middle" class="t-mono">Ch.12</text>
       </g>
       <path d="M970 99 H984" class="s-line" stroke-dasharray="3 3"/>
       <!-- loop back -->
       <path d="M889 230 V252 H89 V234" class="s-acc" stroke-dasharray="5 5" fill="none" marker-end="url(#hm-arr)"/>
       <text x="489" y="280" text-anchor="middle" class="t-dim">고른 토큰을 입력 끝에 붙이고 다시 처음부터 — 자기회귀 생성 (Ch.08)</text>
     </svg>
-    <figcaption><b>그림 0-1.</b> 텍스트가 다음 토큰이 되기까지의 흐름과 챕터 지도. 양자화(Ch.09), RAG(Ch.10), 서빙 설계(Ch.11)는 이 흐름을 더 싸고, 더 정확하고, 더 빠르게 만드는 기술입니다.</figcaption>
+    <figcaption><b>그림 0-1.</b> 텍스트가 다음 토큰이 되기까지의 흐름과 챕터 지도. 양자화(Ch.09), RAG(Ch.10), 서빙 설계(Ch.12)는 이 흐름을 더 싸고, 더 정확하고, 더 빠르게 만드는 기술이고, 추론 모델과 에이전트(Ch.11)는 이 루프를 길게 돌리며 도구를 쓰게 만든 2025~2026년의 흐름입니다.</figcaption>
   </figure>
 </section>
 
@@ -180,12 +181,14 @@ https://creativecommons.org/licenses/by/4.0/
   <h2>숫자로 보는 요즘 AI</h2>
   <p class="sub">이 교과서를 끝내면 아래 숫자가 어디서 나오는지, 서로 어떻게 얽혀 있는지 설명할 수 있게 됩니다.</p>
   <div class="numbers">
-    <div><b>4,096</b><span>Llama 3 8B가 토큰 하나를 표현하는 벡터의 차원 수</span></div>
-    <div><b>128,256</b><span>Llama 3 토크나이저의 어휘 크기. 출력층은 매 스텝 이만큼의 확률을 계산한다</span></div>
-    <div><b>≈ 2N</b><span>파라미터 N개짜리 모델이 토큰 하나를 만들 때 드는 연산(FLOPs)</span></div>
-    <div><b>~20</b><span>Chinchilla 스케일링 법칙이 말하는 계산 최적 '파라미터당 학습 토큰 수'</span></div>
-    <div><b>128 KiB</b><span>Llama 3 8B가 토큰 하나마다 쌓는 KV 캐시 (FP16). 128k 문맥이면 16 GiB</span></div>
-    <div><b>4.125 bit</b><span>INT4 그룹 양자화(그룹 128, FP16 스케일)의 가중치당 실제 비용</span></div>
+    <div><b>≈ 2N</b><span>파라미터 N개짜리 모델이 토큰 하나를 만들 때 드는 연산(FLOPs). MoE라면 N은 '활성' 파라미터</span></div>
+    <div><b>5.1B / 117B</b><span>gpt-oss-120b가 토큰마다 실제로 쓰는 파라미터 / 전체 파라미터. 전문가 128개 중 4개만 깨어난다</span></div>
+    <div><b>128 KiB</b><span>Llama 3 8B가 토큰 하나마다 쌓는 KV 캐시(FP16). 128k 문맥이면 16 GiB — 그래서 MLA·하이브리드 어텐션이 나왔다</span></div>
+    <div><b>3 : 1</b><span>Qwen3.5의 선형 어텐션(Gated DeltaNet) 층과 풀 어텐션 층의 비율 (2026)</span></div>
+    <div><b>1M 토큰</b><span>DeepSeek-V4의 기본 컨텍스트 길이. 압축·희소 어텐션으로 KV를 수십 분의 1로 줄였다 (2026)</span></div>
+    <div><b>4.5 bit</b><span>NVFP4의 원소당 실제 비용: 4비트 값 16개가 FP8 스케일 하나를 공유한다</span></div>
+    <div><b>288 GB</b><span>NVIDIA Rubin GPU 한 개의 HBM4 용량(약 19~22 TB/s, 2026년 하반기 공급)</span></div>
+    <div><b>~20 → 1000+</b><span>Chinchilla의 계산 최적 '파라미터당 토큰' vs 추론 비용을 아끼려 훨씬 더 오래 학습하는 요즘 소형 모델</span></div>
   </div>
 </section>
 
@@ -201,9 +204,10 @@ https://creativecommons.org/licenses/by/4.0/
   <div class="paths">
     <div class="path"><h3>입문 · 전체 그림</h3><p>AI가 처음이라면. 벡터에서 출발해 LLM이 글을 쓰는 원리까지 한 줄로.</p><div class="steps"><a href="chapters/vector.html">01</a><a href="chapters/neuron.html">02</a><a href="chapters/embedding.html">04</a><a href="chapters/attention.html">05</a><a href="chapters/generation.html">08</a></div></div>
     <div class="path"><h3>Transformer 핵심만</h3><p>신경망 기초는 안다면. 임베딩·어텐션·블록 구조에 집중.</p><div class="steps"><a href="chapters/embedding.html">04</a><a href="chapters/attention.html">05</a><a href="chapters/transformer.html">06</a><a href="chapters/llm.html">07</a></div></div>
-    <div class="path"><h3>ML 엔지니어 · 학습</h3><p>모델을 직접 학습시키려면. 최적화, 스케일링, 정렬(RLHF·DPO).</p><div class="steps"><a href="chapters/neuron.html">02</a><a href="chapters/training.html">03</a><a href="chapters/transformer.html">06</a><a href="chapters/llm.html">07</a></div></div>
-    <div class="path"><h3>추론 · 하드웨어</h3><p>LLM을 빠르고 싸게 돌리려면. KV 캐시, 양자화, 루프라인, 배칭.</p><div class="steps"><a href="chapters/transformer.html">06</a><a href="chapters/generation.html">08</a><a href="chapters/quantization.html">09</a><a href="chapters/design.html">11</a></div></div>
-    <div class="path"><h3>AI 애플리케이션</h3><p>LLM으로 서비스를 만들려면. 임베딩 검색, 디코딩 설정, RAG.</p><div class="steps"><a href="chapters/embedding.html">04</a><a href="chapters/generation.html">08</a><a href="chapters/rag.html">10</a><a href="chapters/design.html">11</a></div></div>
+    <div class="path"><h3>ML 엔지니어 · 학습</h3><p>모델을 직접 학습시키려면. 최적화(Muon), 스케일링, 정렬(RLHF·DPO), 추론 RL(GRPO).</p><div class="steps"><a href="chapters/neuron.html">02</a><a href="chapters/training.html">03</a><a href="chapters/transformer.html">06</a><a href="chapters/llm.html">07</a><a href="chapters/agent.html">11</a></div></div>
+    <div class="path"><h3>추론 · 하드웨어</h3><p>LLM을 빠르고 싸게 돌리려면. KV 캐시, 양자화, 루프라인, 배칭.</p><div class="steps"><a href="chapters/transformer.html">06</a><a href="chapters/generation.html">08</a><a href="chapters/quantization.html">09</a><a href="chapters/design.html">12</a></div></div>
+    <div class="path"><h3>AI 애플리케이션 · 에이전트</h3><p>LLM으로 서비스를 만들려면. 임베딩 검색, 디코딩 설정, RAG, 도구를 쓰는 에이전트.</p><div class="steps"><a href="chapters/embedding.html">04</a><a href="chapters/generation.html">08</a><a href="chapters/rag.html">10</a><a href="chapters/agent.html">11</a><a href="chapters/design.html">12</a></div></div>
+    <div class="path"><h3>2026 최신 동향만</h3><p>기초는 안다면. MoE·하이브리드 어텐션·FP4·추론 모델·분리 서빙.</p><div class="steps"><a href="chapters/attention.html">05</a><a href="chapters/transformer.html">06</a><a href="chapters/quantization.html">09</a><a href="chapters/agent.html">11</a><a href="chapters/design.html">12</a></div></div>
   </div>
 </section>
 

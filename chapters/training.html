@@ -14,7 +14,7 @@ https://creativecommons.org/licenses/by/4.0/
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <title>학습: 경사하강과 역전파 · AIBook</title>
-<meta name="description" content="손실 함수(MSE·교차 엔트로피), 경사하강과 학습률, 계산 그래프와 역전파, 미니배치 SGD, Momentum·RMSProp·Adam, warmup+cosine 스케줄, 초기화와 기울기 소실, 과적합과 정규화, 그리고 LLM 규모의 학습까지 직접 조작하며 배운다.">
+<meta name="description" content="손실 함수(MSE·교차 엔트로피), 경사하강과 학습률, 계산 그래프와 역전파, 미니배치 SGD, Momentum·RMSProp·Adam과 Muon, warmup+cosine·WSD 스케줄, 초기화와 기울기 소실, 과적합과 정규화, 그리고 FP8·FP4 저정밀 학습과 LLM 규모의 학습까지 직접 조작하며 배운다.">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
@@ -55,6 +55,7 @@ https://creativecommons.org/licenses/by/4.0/
       <li>계산 그래프에서 순전파·역전파를 손으로 따라가며 연쇄법칙으로 기울기를 구하고, 수치 미분으로 검증할 수 있다.</li>
       <li>미니배치 SGD, 에폭, 배치 크기와 기울기 노이즈의 관계를 이해한다.</li>
       <li>Momentum·RMSProp·Adam의 갱신식을 비교하고, warmup + cosine 학습률 스케줄을 설계할 수 있다.</li>
+      <li>Muon이 행렬 업데이트를 Newton–Schulz 반복으로 직교화하는 원리와, 어떤 파라미터에 Muon/AdamW를 쓰는지 설명할 수 있다.</li>
       <li>초기화가 깊은 망의 활성값·기울기 크기를 어떻게 좌우하는지, 과적합과 정규화가 무엇인지, LLM 학습이 실제로 어떤 규모인지 안다.</li>
     </ul>
   </header>
@@ -102,7 +103,7 @@ https://creativecommons.org/licenses/by/4.0/
       </svg>
       <figcaption><b>그림 3-1.</b> 학습 루프. 데이터 묶음을 모델에 통과시켜 손실을 계산(순전파)하고, 손실의 각 파라미터에 대한 기울기를 계산(역전파)한 다음, 옵티마이저가 기울기 반대 방향으로 파라미터를 조금 옮긴다. LLM 사전학습도 정확히 이 루프를 수십만 번 돈다.</figcaption>
     </figure>
-    <p>이 장의 순서는 이 루프를 그대로 따른다. 먼저 손실을 어떻게 정의할지(2절), 기울기 방향으로 얼마나 움직일지(3절), 기울기를 어떻게 효율적으로 구할지(4절)를 본 뒤, 데이터를 쪼개 쓰는 미니배치(5절), 더 똑똑한 옵티마이저(6절), 학습률 일정(7절), 그리고 깊은 망과 일반화에서 생기는 문제(8·9절)를 다룬다. 마지막으로 LLM 학습이 실제로 어떤 규모인지 숫자로 확인한다.</p>
+    <p>이 장의 순서는 이 루프를 그대로 따른다. 먼저 손실을 어떻게 정의할지(2절), 기울기 방향으로 얼마나 움직일지(3절), 기울기를 어떻게 효율적으로 구할지(4절)를 본 뒤, 데이터를 쪼개 쓰는 미니배치(5절), 더 똑똑한 옵티마이저(6·7절), 학습률 일정(8절), 그리고 깊은 망과 일반화에서 생기는 문제(9·10절)를 다룬다. 마지막으로 LLM 학습이 실제로 어떤 규모인지 숫자로 확인한다.</p>
   </section>
 
   <!-- ============================================================ 2 -->
@@ -278,7 +279,7 @@ https://creativecommons.org/licenses/by/4.0/
       </svg>
       <figcaption><b>그림 3-3.</b> 뉴런 하나짜리 회귀의 계산 그래프. 순전파는 왼쪽에서 오른쪽으로 값을 계산해 저장하고, 역전파는 \(\partial L/\partial L = 1\)에서 출발해 각 간선의 국소 기울기를 곱해 가며 오른쪽에서 왼쪽으로 흐른다. 경로를 따라 곱한 것이 곧 연쇄법칙이다.</figcaption>
     </figure>
-    <p>각 연산 노드는 자기 국소 기울기만 알면 된다. 곱셈 \(m = w\cdot x\)는 \(\partial m/\partial w = x\), \(\partial m/\partial x = w\) — 상대편 입력을 그대로 넘긴다. 덧셈은 기울기를 1배로 복사해 나눠 준다. 시그모이드는 \(\sigma'(z) = \sigma(z)(1-\sigma(z))\)로, 순전파에서 계산한 \(a\)를 재사용한다. 그래서 역전파는 <strong>순전파 때의 중간값을 메모리에 저장</strong>해야 하고, 이것이 학습이 추론보다 메모리를 훨씬 많이 쓰는 이유 중 하나다(10절의 활성값 메모리).</p>
+    <p>각 연산 노드는 자기 국소 기울기만 알면 된다. 곱셈 \(m = w\cdot x\)는 \(\partial m/\partial w = x\), \(\partial m/\partial x = w\) — 상대편 입력을 그대로 넘긴다. 덧셈은 기울기를 1배로 복사해 나눠 준다. 시그모이드는 \(\sigma'(z) = \sigma(z)(1-\sigma(z))\)로, 순전파에서 계산한 \(a\)를 재사용한다. 그래서 역전파는 <strong>순전파 때의 중간값을 메모리에 저장</strong>해야 하고, 이것이 학습이 추론보다 메모리를 훨씬 많이 쓰는 이유 중 하나다(11절의 활성값 메모리).</p>
 
     <div class="sim" id="sim-tr-graph">
       <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>계산 그래프에서 순전파·역전파 따라가기</h3></div>
@@ -296,7 +297,7 @@ https://creativecommons.org/licenses/by/4.0/
         <div class="stat"><span class="k">∂L/∂b 역전파 / 수치</span><span class="v" id="tr-graph-o-b">—</span></div>
         <div class="stat"><span class="k">상대 오차 (최대)</span><span class="v" id="tr-graph-o-e">—</span></div>
       </div>
-      <div class="sim-note">해볼 것: ① "순전파 ▶"를 다섯 번 눌러 m → z → a → d → L 순서로 값이 채워지는 것을 본다. ② "◀ 역전파"를 눌러 L에서 출발한 기울기(분홍)가 간선의 국소 기울기(×값)와 곱해지며 거꾸로 흐르는 것을 확인하자. 수치 미분 \((L(w+h)-L(w-h))/2h\)과 10자리 가까이 일치한다. ③ 회색 입력 노드(w, x, b, y)를 좌우로 끌어 값을 바꾸면 모든 값과 기울기가 즉시 다시 계산된다. z를 크게(예: w = 3, x = 2) 만들면 σ가 포화되어 a(1−a) ≈ 0이 되고 ∂L/∂w가 사라진다 — 8절 기울기 소실의 축소판이다. ④ "경사 한 스텝"을 반복해 L이 줄어드는 것을 보자.</div>
+      <div class="sim-note">해볼 것: ① "순전파 ▶"를 다섯 번 눌러 m → z → a → d → L 순서로 값이 채워지는 것을 본다. ② "◀ 역전파"를 눌러 L에서 출발한 기울기(분홍)가 간선의 국소 기울기(×값)와 곱해지며 거꾸로 흐르는 것을 확인하자. 수치 미분 \((L(w+h)-L(w-h))/2h\)과 10자리 가까이 일치한다. ③ 회색 입력 노드(w, x, b, y)를 좌우로 끌어 값을 바꾸면 모든 값과 기울기가 즉시 다시 계산된다. z를 크게(예: w = 3, x = 2) 만들면 σ가 포화되어 a(1−a) ≈ 0이 되고 ∂L/∂w가 사라진다 — 9절 기울기 소실의 축소판이다. ④ "경사 한 스텝"을 반복해 L이 줄어드는 것을 보자.</div>
     </div>
     <div class="callout deep"><strong>역전파 = 역방향 자동 미분</strong>
       <p>PyTorch·JAX의 <code>loss.backward()</code>는 순전파 때 실행된 연산을 테이프(그래프)에 기록해 두고, 이 시뮬레이터와 똑같이 거꾸로 훑는다. 이것을 <span class="term">역방향 모드 자동 미분</span><span class="en">(reverse-mode autodiff)</span>이라 한다. 출력이 스칼라(손실) 하나이고 입력(파라미터)이 수십억 개일 때 역방향 모드가 압도적으로 유리하다. 행렬 연산으로 보면 \(Y = XW\)의 역전파는 \(\partial L/\partial X = (\partial L/\partial Y)\,W^\top\), \(\partial L/\partial W = X^\top(\partial L/\partial Y)\)로, 순전파 행렬곱 1번에 역전파 행렬곱 2번이 필요하다. 학습 FLOPs가 "파라미터당 토큰당 6"(순전파 2 + 역전파 4)인 이유다(<a href="llm.html">7장</a>의 \(C \approx 6ND\)).</p>
@@ -310,7 +311,7 @@ https://creativecommons.org/licenses/by/4.0/
     <div class="formula">$$g_t = \frac{1}{|\mathcal B|}\sum_{i\in\mathcal B}\nabla_\theta\, \ell(f_\theta(x_i), y_i), \qquad \mathbb E[g_t] = \nabla_\theta \mathcal L, \qquad \operatorname{Var}[g_t] \approx \frac{\sigma^2}{|\mathcal B|}$$
       <div class="where">미니배치 기울기는 전체 기울기의 불편 추정량이고, 분산은 배치 크기에 반비례한다. 배치를 4배 키우면 노이즈의 표준편차는 절반이 된다. 데이터 전체를 한 바퀴 다 쓰는 것을 1 <span class="term">에폭</span><span class="en">(epoch)</span>이라 한다.</div>
     </div>
-    <p>노이즈는 단점만 있는 것이 아니다. 계산이 싸서 같은 시간에 훨씬 많은 스텝을 밟을 수 있고, 약간의 흔들림이 날카로운 극소에서 빠져나와 평평한(일반화가 잘 되는) 극소로 가게 돕는다는 관찰도 있다. 반면 배치가 작으면 바닥 근처에서 계속 떨려 정확히 수렴하지 못하므로, 학습률을 점점 줄여야 한다(7절). 아래는 점 데이터에 직선 \(\hat y = wx + b\)를 MSE로 피팅하는 가장 단순한 경우다. 파라미터가 \((w, b)\) 두 개뿐이라 오른쪽에 손실 지형 전체를 그릴 수 있다.</p>
+    <p>노이즈는 단점만 있는 것이 아니다. 계산이 싸서 같은 시간에 훨씬 많은 스텝을 밟을 수 있고, 약간의 흔들림이 날카로운 극소에서 빠져나와 평평한(일반화가 잘 되는) 극소로 가게 돕는다는 관찰도 있다. 반면 배치가 작으면 바닥 근처에서 계속 떨려 정확히 수렴하지 못하므로, 학습률을 점점 줄여야 한다(8절). 아래는 점 데이터에 직선 \(\hat y = wx + b\)를 MSE로 피팅하는 가장 단순한 경우다. 파라미터가 \((w, b)\) 두 개뿐이라 오른쪽에 손실 지형 전체를 그릴 수 있다.</p>
 
     <div class="sim" id="sim-tr-sgd">
       <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>선형회귀를 미니배치 SGD로 학습</h3></div>
@@ -424,7 +425,99 @@ https://creativecommons.org/licenses/by/4.0/
       <div class="sim-note">해볼 것: ① 협곡에서 출발점을 왼쪽 위 구석으로 클릭해 레이스를 다시 시작하자. SGD는 느리게, Momentum은 휘어 돌며 빠르게, RMSProp·Adam은 처음에 거의 45° 대각선으로 출발한다(좌표별 정규화 때문에 두 좌표가 같은 보폭으로 움직인다). 수치는 "도착 스텝(손실이 최솟값 + 10⁻³ 이내) · 현재 손실"이다. ② 로젠브록에서는 SGD가 휘어진 골짜기를 따라 수천 스텝을 기어가지만 Adam은 훨씬 빨리 (1, 1)에 다가간다. ③ 다중 극소에서 Momentum이 관성 때문에 얕은 웅덩이를 지나쳐 다른 웅덩이로 가는 경우를 찾아보자. ④ 학습률을 바꿔 가며 "모든 문제에서 이기는 옵티마이저는 없다"는 것도 확인하자.</div>
     </div>
     <div class="callout"><strong>AdamW: 가중치 감쇠를 분리하라</strong>
-      <p>L2 정규화(9절)를 손실에 \(\tfrac{\lambda}{2}\|\theta\|^2\)로 더하면 그 기울기 \(\lambda\theta\)도 Adam의 \(\sqrt{\hat v}\)로 나뉘어, 기울기가 큰 파라미터일수록 정규화가 약해지는 이상한 효과가 생긴다. <span class="term">AdamW</span><span class="en">(Loshchilov &amp; Hutter, 2019)</span>는 감쇠를 갱신에서 따로 \(\theta \leftarrow \theta - \eta\big(\hat m/(\sqrt{\hat v}+\epsilon) + \lambda\theta\big)\)로 적용한다. GPT-3, Llama 계열 등 대부분의 LLM이 AdamW(\(\beta_2 = 0.95\), 가중치 감쇠 0.1 내외)로 학습된다.</p>
+      <p>L2 정규화(10절)를 손실에 \(\tfrac{\lambda}{2}\|\theta\|^2\)로 더하면 그 기울기 \(\lambda\theta\)도 Adam의 \(\sqrt{\hat v}\)로 나뉘어, 기울기가 큰 파라미터일수록 정규화가 약해지는 이상한 효과가 생긴다. <span class="term">AdamW</span><span class="en">(Loshchilov &amp; Hutter, 2019)</span>는 감쇠를 갱신에서 따로 \(\theta \leftarrow \theta - \eta\big(\hat m/(\sqrt{\hat v}+\epsilon) + \lambda\theta\big)\)로 적용한다. GPT-3, Llama 계열 등 대부분의 LLM이 AdamW(\(\beta_2 = 0.95\), 가중치 감쇠 0.1 내외)로 학습된다.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 6b -->
+  <section id="tr-muon">
+    <h2>Muon: 행렬 업데이트를 직교화하는 옵티마이저</h2>
+    <p>Adam은 파라미터를 <strong>숫자 하나하나</strong>로 본다. 좌표마다 \(m\)과 \(v\)를 따로 추적하고 좌표마다 보폭을 정한다. 그런데 Transformer 파라미터의 대부분은 숫자의 나열이 아니라 <strong>행렬</strong>이다. 어텐션의 \(W_Q, W_K, W_V, W_O\), FFN의 \(W_1, W_2\)는 모두 입력 벡터를 출력 벡터로 보내는 선형 사상이다. 2024년 말 Keller Jordan 등이 제안한 <span class="term">Muon</span><span class="en">(MomentUm Orthogonalized by Newton–Schulz)</span>은 이 구조를 직접 이용한다. 2025~2026년에는 Kimi K2, DeepSeek-V4 같은 1조 파라미터급 MoE 모델의 사전학습에 쓰이면서 AdamW의 가장 유력한 대안이 되었다.</p>
+    <h3>왜 직교화하나</h3>
+    <p>행렬 \(G\)(기울기 또는 그 모멘텀)를 특이값 분해하면 \(G = U\Sigma V^\top\)이다(<a href="vector.html">1장</a>). \(V\)의 열은 입력 공간의 방향, \(U\)의 열은 출력 공간의 방향, \(\Sigma\)는 방향마다의 세기다. 실제 LLM의 기울기 행렬은 특이값이 몹시 고르지 않아서, 소수의 방향이 거의 전부를 차지하고 나머지 수백~수천 방향은 아주 작다(<strong>낮은 유효 랭크</strong>). 이대로 \(W \leftarrow W - \eta G\)를 하면 갱신이 몇 개 방향에만 몰리고, 작지만 유용할 수 있는 방향은 거의 학습되지 않는다. Muon은 <strong>방향(\(U, V\))은 그대로 두고 세기(\(\Sigma\))만 모두 1로 바꾼</strong> 행렬로 갱신한다.</p>
+    <div class="formula">$$M_t = \mu M_{t-1} + G_t, \qquad O_t = \operatorname{Orth}(M_t) \approx U V^\top \;\;(M_t = U\Sigma V^\top), \qquad W \leftarrow W - \eta\,(s\,O_t + \lambda W)$$
+      <div class="where">\(\mu \approx 0.95\)는 모멘텀(실제로는 Nesterov 형태를 많이 쓴다), \(\lambda\)는 AdamW식 분리 가중치 감쇠다. \(U V^\top\)는 \(M_t\)에 가장 가까운 직교(반직교) 행렬로, '극분해의 직교 인자'라고 한다. \(s\)는 모양에 따른 크기 보정이다. Moonshot AI의 'Muon is Scalable for LLM Training'(2025)은 \(s = 0.2\sqrt{\max(m, n)}\)로 두어 갱신의 RMS를 AdamW와 비슷하게 맞추면, AdamW에서 쓰던 학습률·감쇠를 거의 그대로 옮겨 쓸 수 있다고 보고했다.</div>
+    </div>
+    <p>이 업데이트는 '가장 가파른 방향'을 다른 자로 잰 결과로도 해석된다. 일반 경사하강은 유클리드 노름(\(\|\Delta W\|_F\))이 일정한 범위에서 손실을 가장 많이 줄이는 방향이고, 직교화된 \(UV^\top\)는 <strong>스펙트럼 노름</strong>(\(\|\Delta W\|_2\), 최대 특이값)이 일정한 범위에서 손실을 가장 많이 줄이는 방향이다. 행렬이 입력 벡터를 얼마나 늘리는가는 스펙트럼 노름이 정하므로, 이 기준은 "갱신 후 층의 출력이 어느 방향으로든 일정 이상 변하지 않게" 하는 것과 같다.</p>
+    <h3>Newton–Schulz 반복: SVD 없이 직교화하기</h3>
+    <p>큰 행렬마다 매 스텝 SVD를 하면 너무 느리고 GPU에 잘 맞지 않는다. Muon은 행렬곱만으로 \(UV^\top\)에 가까이 가는 <span class="term">Newton–Schulz 반복</span>을 쓴다. 먼저 \(X_0 = M/\|M\|_F\)로 정규화해 모든 특이값을 1 이하로 만든 뒤(Frobenius 노름은 최대 특이값 이상이므로) 다음을 5번 반복한다.</p>
+    <div class="formula">$$X_{k+1} = a X_k + b\,(X_k X_k^\top) X_k + c\,(X_k X_k^\top)^2 X_k, \qquad (a, b, c) = (3.4445,\ -4.7750,\ 2.0315)$$
+      <div class="where">\(X = U\Sigma V^\top\)이면 \(XX^\top X = U\Sigma^3 V^\top\)이므로, 이 반복은 \(U, V\)를 건드리지 않고 각 특이값에 다항식 \(\varphi(\sigma) = a\sigma + b\sigma^3 + c\sigma^5\)를 적용한다. 고전적인 3차 반복 \((a,b,c) = (1.5, -0.5, 0)\)은 특이값을 정확히 1로 수렴시키지만 작은 특이값에서 기울기가 1.5에 불과해 수십 번이 필요하다. Jordan의 5차 계수는 원점 기울기 \(a\)를 3.4445로 키워 작은 특이값을 매 스텝 3배 이상 키우는 대신, 1 근처에서 정확히 수렴하지 않고 약 0.7~1.2 사이에서 진동하는 것을 허용한다. 실험적으로 이 정도 오차는 학습에 해가 없었다.</div>
+    </div>
+    <figure class="diagram">
+      <svg viewBox="0 0 800 290" role="img" aria-label="Newton–Schulz 다항식이 특이값을 1 근처로 보내는 모습">
+        <path d="M70 30 V250 H480" class="s-axis"/>
+        <path d="M70 80.8 H470" class="s-line" style="stroke-dasharray:4 4"/>
+        <path d="M70 250 L470 46.9" class="s-line" style="stroke-dasharray:2 4;opacity:.6"/><text x="446" y="44" class="t-dim" text-anchor="end">y = σ</text>
+        <path d="M403.3 250 V244" class="s-axis"/><path d="M236.7 250 V244" class="s-axis"/>
+        <text x="70" y="268" text-anchor="middle" class="t-mono">0</text><text x="236.7" y="268" text-anchor="middle" class="t-mono">0.5</text><text x="403.3" y="268" text-anchor="middle" class="t-mono">1</text>
+        <text x="62" y="84.8" text-anchor="end" class="t-mono">1</text><text x="62" y="254" text-anchor="end" class="t-mono">0</text>
+        <text x="275" y="286" text-anchor="middle" class="t-dim">입력 특이값 σ</text>
+        <text x="24" y="150" text-anchor="middle" class="t-dim" transform="rotate(-90 24 150)">φ(σ)</text>
+        <path d="M70.0,250.0 L73.3,247.5 L80.0,242.4 L90.0,234.8 L100.0,227.2 L110.0,219.7 L120.0,212.2 L130.0,204.8 L140.0,197.5 L150.0,190.2 L160.0,183.1 L170.0,176.1 L180.0,169.3 L190.0,162.6 L200.0,156.0 L210.0,149.7 L220.0,143.5 L230.0,137.5 L240.0,131.8 L250.0,126.2 L260.0,121.0 L270.0,116.0 L280.0,111.2 L290.0,106.8 L300.0,102.6 L310.0,98.8 L320.0,95.3 L330.0,92.2 L340.0,89.4 L350.0,86.9 L360.0,84.9 L370.0,83.2 L380.0,82.0 L390.0,81.2 L400.0,80.8 L410.0,80.9 L420.0,81.4 L430.0,82.4 L440.0,84.0 L450.0,86.0 L460.0,88.5 L470.0,91.6" class="s-acc2" style="fill:none;stroke-width:2"/>
+        <path d="M70.0,250.0 L76.7,238.3 L83.3,226.7 L90.0,215.2 L96.7,203.8 L103.3,192.5 L110.0,181.4 L116.7,170.6 L123.3,160.0 L130.0,149.7 L136.7,139.8 L143.3,130.2 L150.0,121.0 L156.7,112.2 L163.3,103.9 L170.0,96.1 L176.7,88.8 L183.3,82.0 L190.0,75.8 L196.7,70.1 L203.3,65.0 L210.0,60.6 L216.7,56.7 L223.3,53.4 L230.0,50.8 L236.7,48.8 L243.3,47.4 L250.0,46.7 L256.7,46.5 L263.3,47.0 L270.0,48.1 L276.7,49.7 L283.3,51.9 L290.0,54.5 L296.7,57.7 L303.3,61.3 L310.0,65.4 L316.7,69.8 L323.3,74.5 L330.0,79.5 L336.7,84.7 L343.3,90.1 L350.0,95.5 L356.7,100.9 L363.3,106.3 L370.0,111.5 L376.7,116.4 L383.3,120.9 L390.0,125.0 L396.7,128.5 L403.3,131.4 L410.0,133.4 L416.7,134.5 L423.3,134.5 L430.0,133.3 L436.7,130.7 L443.3,126.5 L450.0,120.7 L456.7,113.1 L463.3,103.3 L470.0,91.4" class="s-acc" style="fill:none;stroke-width:2.4"/>
+        <path d="M86.7,250.0 L86.7,221.0 L127.2,221.0 L127.2,154.0 L259.1,154.0 L259.1,46.6 L470,46.6 L470,90.3 L384.5,90.3 L384.5,121.7" style="fill:none;stroke:var(--warn);stroke-width:1.4;stroke-dasharray:3 3"/>
+        <circle cx="86.7" cy="250" r="3.5" style="fill:var(--warn)"/>
+        <text x="300" y="40" class="t" style="fill:var(--accent)">5차 (3.4445, −4.7750, 2.0315)</text>
+        <text x="300" y="185" class="t" style="fill:var(--accent-2)">3차 (1.5, −0.5)</text>
+        <text x="120" y="74" class="t-dim">y = 1</text>
+        <rect x="510" y="30" width="276" height="220" rx="10" class="f-surface" style="stroke:var(--border)"/>
+        <text x="648" y="54" text-anchor="middle" class="t">σ₀ = 0.05에서 시작한 5스텝</text>
+        <text x="530" y="82" class="t-dim">k</text><text x="600" y="82" class="t" style="fill:var(--accent)">5차</text><text x="700" y="82" class="t" style="fill:var(--accent-2)">3차</text>
+        <g class="t-mono">
+          <text x="530" y="106">1</text><text x="600" y="106">0.172</text><text x="700" y="106">0.075</text>
+          <text x="530" y="130">2</text><text x="600" y="130">0.567</text><text x="700" y="130">0.112</text>
+          <text x="530" y="154">3</text><text x="600" y="154">1.202</text><text x="700" y="154">0.168</text>
+          <text x="530" y="178">4</text><text x="600" y="178">0.944</text><text x="700" y="178">0.249</text>
+          <text x="530" y="202">5</text><text x="600" y="202">0.758</text><text x="700" y="202">0.366</text>
+        </g>
+        <text x="648" y="236" text-anchor="middle" class="t-dim">3차가 1에 닿으려면 약 10스텝 필요</text>
+      </svg>
+      <figcaption><b>그림 3-7.</b> Newton–Schulz 반복이 특이값 하나에 하는 일(실제 계산). 보라: Muon의 5차 다항식, 분홍: 고전 3차 다항식, 점선: \(y = 1\). 주황 계단은 \(\sigma_0 = 0.05\)에서 5차 다항식을 반복 적용하는 궤적(cobweb: 곡선에서 값을 읽고, 대각선 \(y=\sigma\)를 거쳐 다음 입력으로)이다. 5차는 작은 특이값을 빠르게 키운 뒤 1 근처에서 오르내리고, 3차는 정확히 1로 가지만 훨씬 느리다. 오른쪽 표는 같은 값을 숫자로 적은 것이다.</figcaption>
+    </figure>
+    <p>한 번의 반복은 \(m\times n\) 행렬(\(m \le n\)이 되게 필요하면 전치)에 대해 \(A = XX^\top\)(\(m\times m\)), \(A^2\), 그리고 \((bA + cA^2)X\)의 행렬곱 세 번이다. 5번 반복해도 순전파·역전파 계산에 비하면 작고(수 % 이하), BF16에서 안정적으로 돈다. 상태는 모멘텀 \(M\) 하나뿐이라 Adam의 \(m, v\) 두 개보다 파라미터당 4바이트를 아낀다.</p>
+
+    <div class="sim" id="sim-tr-muon">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>직교화 업데이트: Newton–Schulz를 한 스텝씩</h3></div>
+      <div class="sim-body">
+        <div class="sim-view tr-two">
+          <div><canvas id="cv-tr-muon2"></canvas><span class="tr-cap">2×2 행렬: 단위원 → 타원 (끝점 드래그)</span></div>
+          <div><canvas id="cv-tr-muonS"></canvas><span class="tr-cap">32×16 행렬의 특이값 (로그 눈금)</span></div>
+        </div>
+        <div class="sim-controls">
+          <label class="ctrl"><span>Newton–Schulz 반복 k <output id="tr-mu-k-out"></output></span><input type="range" id="tr-mu-k" min="0" max="12" step="1" value="0"></label>
+          <div class="ctrl"><span>다항식 계수</span><div class="seg" id="tr-mu-co"><button data-value="q" class="on">5차 (Muon)</button><button data-value="c">고전 3차</button></div></div>
+          <label class="check"><input type="checkbox" id="tr-mu-sign"> sign(G) 겹쳐 보기 (≈ Adam 첫 스텝)</label>
+          <div class="ctrl"><span>행렬</span><div class="tr-btns"><button class="btn primary" id="tr-mu-play">0→5 재생</button><button class="btn" id="tr-mu-new">새 32×16 기울기</button></div></div>
+        </div>
+      </div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">2×2: σ(G)</span><span class="v" id="tr-mu-o-g">—</span></div>
+        <div class="stat"><span class="k">2×2: σ(X<sub>k</sub>)</span><span class="v" id="tr-mu-o-x">—</span></div>
+        <div class="stat"><span class="k">32×16: σ<sub>max</sub>/σ<sub>min</sub> (X<sub>k</sub>)</span><span class="v" id="tr-mu-o-c">—</span></div>
+        <div class="stat"><span class="k">‖X<sub>k</sub> − UVᵀ‖<sub>F</sub> / ‖UVᵀ‖<sub>F</sub></span><span class="v" id="tr-mu-o-e">—</span></div>
+        <div class="stat"><span class="k">sign(G)의 σ<sub>max</sub>/σ<sub>min</sub></span><span class="v" id="tr-mu-o-s">—</span></div>
+      </div>
+      <div class="sim-note">해볼 것: ① 왼쪽에서 두 끝점(\(Ge_1\), \(Ge_2\))을 끌어 거의 같은 방향으로 모아 보자. \(G\)가 단위원을 납작한 타원(분홍)으로 보낸다. k를 올리면 보라색 \(X_k\) 타원이 점점 원(점선 = \(UV^\top\))에 가까워진다. 타원의 <strong>축 방향은 그대로</strong>이고 축 길이만 1로 간다는 점에 주목하자. ② 오른쪽 32×16 행렬은 '몇 개 방향이 지배하는' 기울기를 흉내 내려고 랭크 1 성분 몇 개(세기가 지수적으로 감소) + 작은 잡음으로 만든 교육용 난수 행렬이다. k = 0에서 특이값이 두 자릿수 넘게(약 0.006~0.9) 퍼져 있지만, 5차 계수로 5스텝이면 모든 막대가 0.7~1.2 띠 안에 들어간다. 계수를 '고전 3차'로 바꾸면 같은 5스텝에서 작은 특이값이 아직 바닥에 있다(12스텝까지 올려 비교). ③ sign(G)를 켜자. Adam의 첫 스텝(\(\hat m/\sqrt{\hat v}\)는 첫 스텝에서 정확히 부호다)은 원소별로 크기를 ±1로 맞추지만, 행렬로 보면 특이값이 여전히 고르지 않다(× 표시, RMS를 UVᵀ와 같게 맞춤). 원소별 정규화와 방향별 정규화는 다른 일이다.</div>
+    </div>
+
+    <h3>어떤 파라미터에 Muon을 쓰나</h3>
+    <p>직교화는 '입력 공간 → 출력 공간'인 2차원 은닉층 행렬에만 의미가 있다. 그래서 실제로는 옵티마이저 두 개를 섞는다.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>파라미터</th><th>옵티마이저</th><th>이유</th></tr></thead>
+      <tbody>
+        <tr><td>어텐션 \(W_Q, W_K, W_V, W_O\), FFN \(W_1, W_2, W_3\), MoE 전문가 행렬</td><td>Muon</td><td>선형 사상. 행렬별(필요하면 헤드·전문가별)로 직교화</td></tr>
+        <tr><td>토큰 임베딩 표</td><td>AdamW</td><td>행은 토큰별 조회 테이블이라 '사상'이 아니다. 한 스텝에 나오는 토큰만 기울기를 받는다</td></tr>
+        <tr><td>출력층(LM head)</td><td>AdamW</td><td>경험적으로 AdamW가 낫다고 보고됨</td></tr>
+        <tr><td>RMSNorm 이득, 편향, 게이트 스칼라</td><td>AdamW</td><td>1차원 벡터. 벡터의 '직교화'는 단순한 정규화 \(g/\|g\|\)가 된다</td></tr>
+      </tbody>
+    </table></div>
+    <p>마지막 줄이 위 <strong>옵티마이저 레이스</strong>에 Muon을 넣지 않은 이유이기도 하다. 그 시뮬레이터의 파라미터는 숫자 두 개, 즉 길이 2짜리 벡터(2×1 행렬)라서 특이값이 하나뿐이고, 직교화하면 \(g/\|g\|\)인 정규화 경사하강이 될 뿐이다. Muon의 효과는 여러 방향이 서로 다른 세기를 가진 큰 행렬에서만 드러난다.</p>
+    <h3>대규모 결과: Moonlight, Kimi K2, DeepSeek-V4</h3>
+    <p>Moonshot AI는 2025년 초 가중치 감쇠와 위의 RMS 맞춤을 더하면 Muon이 대형 모델에서도 잘 확장되며, 계산 최적 조건에서 <strong>AdamW 대비 약 2배의 계산 효율</strong>(같은 손실에 약 절반의 FLOPs)을 보인다고 보고했다(3B 활성/16B 총 MoE 'Moonlight', 5.7T 토큰). 이어서 <strong>Kimi K2</strong>(2025.7; 총 1.04T, 활성 32.6B, 전문가 384개 중 8개)를 15.5T 토큰 동안 Muon으로 학습했다.</p>
+    <p>규모를 키우자 문제가 하나 나타났다. 일부 어텐션 헤드의 로짓 \(q\cdot k\)가 수백~수천까지 커지며 학습이 불안정해지는 <strong>어텐션 로짓 폭주</strong>다. Kimi 팀의 <span class="term">MuonClip</span>은 Muon에 <span class="term">QK-Clip</span>을 더한 것이다. 매 스텝 헤드별 최대 로짓 \(S_{\max}^h\)를 재서 임계값 \(\tau = 100\)을 넘으면, \(\gamma = \tau/S_{\max}^h\)로 그 헤드의 \(W_Q\), \(W_K\)를 각각 \(\sqrt{\gamma}\)배 줄인다(로짓은 두 행렬의 곱이라 \(\gamma\)배가 된다). 이렇게 해서 K2는 15.5T 토큰 내내 <strong>손실 스파이크가 한 번도 없었다</strong>고 보고했다(Kimi K2 기술 보고서, 2025). 2026년 4월 공개된 <strong>DeepSeek-V4</strong>(V4-Pro 총 1.6T/활성 49B)도 기술 보고서에서 대부분의 모듈을 Muon으로 학습했고, 임베딩·예측 헤드·RMSNorm 가중치 등은 AdamW로 남겼다고 밝혔다.</p>
+    <div class="callout deep"><strong>Muon이 '항상' 이기는가</strong>
+      <p>아니다. 보고된 이득은 연구에 따라 1.1~2배 정도의 계산 효율로 편차가 크고, 학습률·감쇠·배치를 각 옵티마이저에 맞게 충분히 조정해 비교하면 차이가 더 작아진다는 연구(2025)도 있다. 또 AdamW로 사전학습한 모델을 Muon으로 미세조정하면(또는 그 반대) 이득이 작다는 보고가 있어, 사전학습과 미세조정의 옵티마이저를 맞추는 편이 좋다. 분산 학습에서는 행렬 전체가 있어야 직교화할 수 있어, ZeRO처럼 행렬을 조각내 저장하는 방식과 함께 쓰려면 별도의 통신 설계가 필요하다. 옵티마이저 연구는 지금도 빠르게 움직이는 분야다.</p>
     </div>
   </section>
 
@@ -586,7 +679,7 @@ https://creativecommons.org/licenses/by/4.0/
   <!-- ============================================================ 10 -->
   <section id="tr-scale">
     <h2>실제 규모: LLM은 어떻게 학습하는가</h2>
-    <p>지금까지의 모든 요소가 LLM 사전학습에 그대로 들어간다. 손실은 다음 토큰 교차 엔트로피, 옵티마이저는 AdamW, 스케줄은 warmup + cosine(또는 WSD), 기울기 클리핑 1.0, 초기화는 작은 정규분포 + 잔차 경로 스케일링. 달라지는 것은 숫자의 크기다. Llama 3 405B 논문(Meta, 2024)이 공개한 값을 보자.</p>
+    <p>지금까지의 모든 요소가 LLM 사전학습에 그대로 들어간다. 손실은 다음 토큰 교차 엔트로피, 옵티마이저는 AdamW(2025년부터는 Muon도, 앞의 Muon 절), 스케줄은 warmup + cosine(또는 WSD), 기울기 클리핑 1.0, 초기화는 작은 정규분포 + 잔차 경로 스케일링. 달라지는 것은 숫자의 크기다. Llama 3 405B 논문(Meta, 2024)이 공개한 값을 보자.</p>
     <div class="table-wrap"><table>
       <thead><tr><th>항목</th><th>Llama 3 405B (2024)</th><th>비고</th></tr></thead>
       <tbody>
@@ -634,7 +727,40 @@ https://creativecommons.org/licenses/by/4.0/
       </tbody>
     </table></div>
     <p>8B 모델조차 학습 상태가 GPU 한 장(80 GB)에 들어가지 않는다. 그래서 가중치·기울기·옵티마이저 상태를 GPU들에 나눠 저장하는 <span class="term">ZeRO / FSDP</span><span class="en">(Rajbhandari et al., 2020)</span>, 층을 나누는 파이프라인 병렬, 행렬 하나를 쪼개는 텐서 병렬을 조합한다. 활성값 메모리는 역전파 때 일부 중간값을 다시 계산하는 <span class="term">활성값 재계산</span><span class="en">(activation checkpointing)</span>으로 줄인다. 계산량과 토큰 수의 관계, 그리고 모델 크기와 데이터 양을 어떻게 나눌지에 대한 <strong>스케일링 법칙</strong>은 <a href="llm.html">7장</a>에서 이어진다.</p>
+    <h3>2025~2026년의 대형 학습: MoE, 더 많은 토큰, 새 옵티마이저</h3>
+    <p>Llama 3 405B는 모든 파라미터가 매 토큰 계산에 참여하는 <strong>밀집(dense)</strong> 모델이었다. 이후 대형 오픈 모델은 거의 모두 <span class="term">MoE</span><span class="en">(Mixture of Experts, <a href="transformer.html">6장</a>)</span>로 넘어갔다. 총 파라미터는 조 단위지만 토큰마다 일부 전문가만 계산하므로, 학습 계산량은 \(C \approx 6 N_{\text{활성}} D\)로 활성 파라미터에 비례하고, 메모리(가중치·옵티마이저 상태)는 총 파라미터에 비례한다.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>모델 (공개)</th><th class="num">총 / 활성 파라미터</th><th class="num">학습 토큰</th><th>옵티마이저 · 스케줄</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>DeepSeek-V3 (2024.12)</td><td class="num">671B / 37B</td><td class="num">14.8T</td><td>AdamW · 상수 유지 후 cosine 감쇠(WSD형)</td><td>FP8 혼합 정밀도, H800 약 279만 GPU-시간</td></tr>
+        <tr><td>Qwen3 (2025.4)</td><td class="num">235B / 22B 외 0.6B~32B</td><td class="num">약 36T</td><td>—</td><td>0.6B 소형 모델까지 같은 36T 규모 데이터</td></tr>
+        <tr><td>Kimi K2 (2025.7)</td><td class="num">1.04T / 32.6B</td><td class="num">15.5T</td><td>MuonClip · WSD</td><td>전문가 384개 중 8개, 배치 약 67M 토큰, 손실 스파이크 없음</td></tr>
+        <tr><td>DeepSeek-V4-Pro (2026.4)</td><td class="num">1.6T / 49B</td><td class="num">32T 이상</td><td>Muon(대부분 모듈) + AdamW</td><td>1M 컨텍스트, 하이브리드 압축 어텐션</td></tr>
+      </tbody>
+    </table></div>
+    <p>스케줄에서는 <strong>WSD</strong>(warmup–stable–decay, 8절)가 대형 학습의 주류가 되었다. Kimi K2는 500스텝 warmup 뒤 학습률 2×10⁻⁴를 처음 10T 토큰 동안 그대로 유지하고, 남은 5.5T 토큰에서 cosine으로 2×10⁻⁵까지 내린 다음 마지막 어닐링에서 7×10⁻⁶까지 낮췄다(Kimi K2 기술 보고서, 2025). 긴 '평지' 구간의 체크포인트에서 언제든 감쇠를 시작할 수 있어, 데이터를 더 넣을지 학습 도중에 결정하기 쉽다. 감쇠 구간에는 흔히 수학·코드·고품질 문서 비율을 높인 데이터를 섞는다.</p>
+    <p>MoE 학습에는 밀집 모델에 없는 문제가 더 있다. 라우터가 소수 전문가에게만 토큰을 몰아 주면 나머지 전문가가 학습되지 않으므로 <strong>부하 균형</strong>이 필요하다. 예전에는 보조 손실을 더했지만, DeepSeek-V3는 전문가별 편향값을 부하에 따라 조금씩 조정하는 '보조 손실 없는' 방식을 썼다. 전문가는 여러 GPU에 흩어져 있어(전문가 병렬), 토큰을 전문가가 있는 GPU로 보내고 돌려받는 all-to-all 통신이 층마다 두 번 생긴다. 이 통신을 계산과 겹치는 것이 MoE 학습 효율의 핵심이다(<a href="design.html">12장</a>).</p>
   </section>
+
+  <!-- ============================================================ 11 -->
+  <section id="tr-lowp">
+    <h2>저정밀 학습: BF16에서 FP8, FP4로</h2>
+    <p>앞 절의 혼합 정밀도는 행렬곱을 BF16으로 했다. GPU의 텐서 코어는 비트 수가 절반이 될 때마다 처리량이 대략 2배가 되므로(H100의 FP8 dense 약 1,979 TFLOPS는 BF16의 2배, Blackwell은 FP4까지 지원), 학습 행렬곱 자체를 더 낮은 정밀도로 하려는 시도가 이어졌다. 핵심 어려움은 <strong>표현 범위</strong>다. 활성값과 기울기에는 드물지만 아주 큰 이상값이 섞여 있어, 비트가 적은 형식에 텐서 전체를 하나의 스케일로 담으면 작은 값이 0으로 뭉개진다. 해법은 <a href="quantization.html">9장</a>의 양자화와 같다. <strong>작은 블록마다 따로 스케일</strong>을 둔다.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>형식</th><th>원소 비트</th><th>스케일 방식</th><th>학습 사례</th></tr></thead>
+      <tbody>
+        <tr><td>BF16</td><td class="num">16 (E8M7)</td><td>필요 없음(FP32와 같은 지수 범위)</td><td>2020년대 표준. GPT-3 이후 대부분</td></tr>
+        <tr><td>FP8</td><td class="num">8 (E4M3 / E5M2)</td><td>텐서 또는 블록 단위 스케일</td><td>DeepSeek-V3(2024): 활성값 1×128, 가중치 128×128 블록 스케일, 누적은 높은 정밀도로</td></tr>
+        <tr><td>MXFP4</td><td class="num">4 (E2M1)</td><td>32개 블록 + 2의 거듭제곱(E8M0) 스케일, 유효 4.25비트</td><td>OCP 표준 형식</td></tr>
+        <tr><td>NVFP4</td><td class="num">4 (E2M1)</td><td>16개 블록 + FP8(E4M3) 스케일 + 텐서별 FP32 스케일, 유효 4.5비트</td><td>NVIDIA 12B 모델, 10T 토큰 사전학습(2025)</td></tr>
+      </tbody>
+    </table></div>
+    <p>NVIDIA는 2025년 하반기에 12B 하이브리드(Mamba–Transformer) 모델을 <strong>10T 토큰 동안 NVFP4로 사전학습</strong>해, 손실과 하류 과제 정확도가 FP8 기준선에 근접함을 보였다(arXiv 2509.25149). 4비트로 그냥 바꾼 것은 아니다. 이상값을 퍼뜨리는 무작위 Hadamard 변환, 순전파와 역전파에서 같은 양자화가 되도록 하는 가중치의 2차원 블록 스케일, 기울기 반올림 편향을 없애는 확률적 반올림, 그리고 민감한 일부 층은 높은 정밀도로 남기는 처리가 함께 들어갔다. 같은 보고에서 8B 실험으로 비교하면 MXFP4는 NVFP4와 같은 손실에 도달하는 데 약 36% 더 많은 토큰이 필요했다. 블록이 작고 스케일이 정밀한 쪽이 유리하다는 뜻이다.</p>
+    <div class="callout tip"><strong>정밀도를 낮춰도 남는 것</strong>
+      <p>낮아지는 것은 주로 <strong>행렬곱의 입력</strong>이다. 그림 3-6의 FP32 마스터 가중치와 옵티마이저 상태, 손실 계산, 정규화, 누적(accumulate)은 대개 높은 정밀도로 남는다. 그래서 FP8·FP4 학습의 이득은 메모리보다 <strong>속도(처리량)</strong>와 통신량 쪽이 크다. 학습한 형식 그대로 추론할 수 있다는 점도 장점이다. DeepSeek-V4 인스트럭트 모델은 MoE 전문가 가중치를 FP4, 나머지를 FP8로 배포했다(<a href="quantization.html">9장</a>).</p>
+    </div>
+  </section>
+
 
   <section class="keypoints" id="summary">
     <h2>핵심 정리</h2>
@@ -647,6 +773,8 @@ https://creativecommons.org/licenses/by/4.0/
       <li>깊은 망은 초기화 분산이 \(1/n\)(Xavier, tanh) 또는 \(2/n\)(He, ReLU)에서 벗어나면 활성값·기울기가 층마다 지수적으로 사라지거나 폭주한다. 잔차 연결과 정규화가 근본적인 해결책이다.</li>
       <li>과적합은 검증 손실로 감지하고 L2/weight decay, 드롭아웃, 조기 종료, 데이터 확대로 막는다. LLM 사전학습은 1 에폭 이하라 과소적합 쪽에 가깝다.</li>
       <li>혼합 정밀도 AdamW 학습은 파라미터당 약 16바이트가 필요해, 8B 모델도 GPU 여러 장에 상태를 나눠야 한다.</li>
+      <li>Muon은 은닉층 행렬의 모멘텀 \(M = U\Sigma V^\top\)를 \(UV^\top\)로 직교화해 모든 방향을 같은 세기로 갱신한다. SVD 대신 5차 Newton–Schulz 반복 5번(행렬곱만)을 쓰며, 임베딩·출력층·norm 같은 나머지는 AdamW로 둔다. Kimi K2(MuonClip, 15.5T 토큰)와 DeepSeek-V4가 대규모로 사용했다.</li>
+      <li>2025~2026년 대형 학습은 MoE(계산 ∝ 활성 파라미터, 메모리 ∝ 총 파라미터), WSD 스케줄, 15T~36T 토큰이 일반적이다. 행렬곱 정밀도는 BF16 → FP8(DeepSeek-V3) → NVFP4(12B, 10T 토큰)로 내려가고 있으며, 블록별 스케일이 핵심이다.</li>
     </ol>
   </section>
 
@@ -671,6 +799,12 @@ https://creativecommons.org/licenses/by/4.0/
       <div class="quiz-q"><p>6. 70B 파라미터 모델을 혼합 정밀도 AdamW로 학습할 때, 활성값을 제외한 가중치·기울기·옵티마이저 상태 메모리는 대략?</p><div class="opts">
         <button class="opt">140 GB</button><button class="opt">280 GB</button><button class="opt" data-correct>약 1.1 TB</button><button class="opt">약 4.5 TB</button>
       </div><div class="quiz-exp">BF16 가중치 2 + BF16 기울기 2 + FP32 마스터 4 + Adam m 4 + v 4 = 16바이트/파라미터. 70×10⁹ × 16 B ≈ 1.12 TB로, H100 80 GB 최소 15장에 나눠 담아야 한다(ZeRO/FSDP). 140 GB는 BF16 추론 가중치만의 크기다.</div></div>
+      <div class="quiz-q"><p>7. 어떤 기울기 행렬의 특이값이 (5, 0.5, 0.05)다. Muon의 직교화 업데이트 O = Orth(G)의 특이값은 이상적으로 무엇이 되는가?</p><div class="opts">
+        <button class="opt">(5, 0.5, 0.05)를 Frobenius 노름으로 나눈 값</button><button class="opt" data-correct>(1, 1, 1) — 방향 U, V는 그대로 두고 세기만 모두 같게</button><button class="opt">(1, 0, 0) — 가장 큰 방향만 남긴다</button><button class="opt">원소별 부호를 취한 행렬의 특이값</button>
+      </div><div class="quiz-exp">Orth(UΣVᵀ) = UVᵀ이므로 특이값은 모두 1이다. 작은 방향(0.05)도 큰 방향과 같은 크기로 갱신된다. 실제 Muon의 5차 Newton–Schulz 5스텝은 정확히 1이 아니라 대략 0.7~1.2 사이 값을 준다. 원소별 부호(sign, Adam 첫 스텝)는 특이값을 고르게 만들지 않는다.</div></div>
+      <div class="quiz-q"><p>8. 총 1T, 활성 32B 파라미터인 MoE 모델을 15T 토큰으로 학습한다. C ≈ 6ND로 어림한 학습 계산량은?</p><div class="opts">
+        <button class="opt">약 9×10²⁵ FLOPs (총 파라미터 기준)</button><button class="opt" data-correct>약 2.9×10²⁴ FLOPs (활성 파라미터 기준)</button><button class="opt">약 4.8×10²² FLOPs</button><button class="opt">MoE는 6ND를 쓸 수 없다</button>
+      </div><div class="quiz-exp">토큰마다 계산에 참여하는 것은 활성 파라미터뿐이므로 C ≈ 6 × 32×10⁹ × 15×10¹² ≈ 2.9×10²⁴ FLOPs다(어텐션·라우터 계산은 제외한 어림). 반면 가중치와 옵티마이저 상태 메모리는 총 1T 파라미터에 비례해, 16 B/param이면 약 16 TB다. MoE는 '계산은 작은 모델, 메모리는 큰 모델'이다.</div></div>
     </div>
   </section>
 </main>
@@ -1531,6 +1665,200 @@ https://creativecommons.org/licenses/by/4.0/
       up: function () { dsel = -1; update(); },
     });
     update();
+  })();
+
+  /* ---- Muon 선형대수 (페이지 전용) ---- */
+  var MU = (function () {
+    function T(A) { return A[0].map(function (_, j) { return A.map(function (r) { return r[j]; }); }); }
+    function mul(A, B) {
+      var n = A.length, m = B[0].length, p = B.length, C = [];
+      for (var i = 0; i < n; i++) { var row = new Array(m).fill(0), Ai = A[i]; for (var k = 0; k < p; k++) { var a = Ai[k]; if (a === 0) continue; var Bk = B[k]; for (var j = 0; j < m; j++) row[j] += a * Bk[j]; } C.push(row); }
+      return C;
+    }
+    function frob(A) { var s = 0; A.forEach(function (r) { r.forEach(function (v) { s += v * v; }); }); return Math.sqrt(s); }
+    function scale(A, c) { return A.map(function (r) { return r.map(function (v) { return v * c; }); }); }
+    // 대칭 행렬의 야코비 고윳값 분해 → {vals, V(열 = 고유벡터)}
+    function jacobi(S0) {
+      var n = S0.length, S = S0.map(function (r) { return r.slice(); }), V = [], i, j, k;
+      for (i = 0; i < n; i++) { V.push(new Array(n).fill(0)); V[i][i] = 1; }
+      for (var sweep = 0; sweep < 60; sweep++) {
+        var off = 0; for (i = 0; i < n; i++) for (j = i + 1; j < n; j++) off += S[i][j] * S[i][j];
+        if (off < 1e-30) break;
+        for (var p = 0; p < n; p++) for (var q = p + 1; q < n; q++) {
+          if (Math.abs(S[p][q]) < 1e-300) continue;
+          var th = (S[q][q] - S[p][p]) / (2 * S[p][q]);
+          var t = (th >= 0 ? 1 : -1) / (Math.abs(th) + Math.sqrt(th * th + 1)), c = 1 / Math.sqrt(t * t + 1), s = t * c;
+          for (k = 0; k < n; k++) { var a = S[k][p], b = S[k][q]; S[k][p] = c * a - s * b; S[k][q] = s * a + c * b; }
+          for (k = 0; k < n; k++) { var a2 = S[p][k], b2 = S[q][k]; S[p][k] = c * a2 - s * b2; S[q][k] = s * a2 + c * b2; }
+          for (k = 0; k < n; k++) { var a3 = V[k][p], b3 = V[k][q]; V[k][p] = c * a3 - s * b3; V[k][q] = s * a3 + c * b3; }
+        }
+      }
+      return { vals: S.map(function (r, i) { return r[i]; }), V: V };
+    }
+    function svals(X) {
+      var S = X.length >= X[0].length ? mul(T(X), X) : mul(X, T(X));
+      return jacobi(S).vals.map(function (l) { return Math.sqrt(Math.max(0, l)); }).sort(function (a, b) { return b - a; });
+    }
+    // 극분해 직교 인자 UVᵀ (행 ≥ 열 가정)
+    function polar(G) {
+      var e = jacobi(mul(T(G), G)), n = e.vals.length, D = [];
+      for (var i = 0; i < n; i++) { D.push(new Array(n).fill(0)); D[i][i] = 1 / Math.sqrt(Math.max(e.vals[i], 1e-300)); }
+      return mul(mul(G, mul(e.V, D)), T(e.V));
+    }
+    var COEF = { q: [3.4445, -4.7750, 2.0315], c: [1.5, -0.5, 0] };
+    // Newton–Schulz: X0 = G/‖G‖_F 에서 k번 반복. 모든 중간 단계 반환
+    function ns(G, co, K) {
+      var tr = G.length > G[0].length, X = scale(tr ? T(G) : G, 1 / frob(G)), out = [tr ? T(X) : X];
+      var a = co[0], b = co[1], c = co[2];
+      for (var k = 0; k < K; k++) {
+        var A = mul(X, T(X)), B = scale(A, b);
+        if (c !== 0) { var A2 = mul(A, A); for (var i = 0; i < B.length; i++) for (var j = 0; j < B.length; j++) B[i][j] += c * A2[i][j]; }
+        var BX = mul(B, X);
+        X = X.map(function (r, i) { return r.map(function (v, j) { return a * v + BX[i][j]; }); });
+        out.push(tr ? T(X) : X);
+      }
+      return out;
+    }
+    function sign(G) { return G.map(function (r) { return r.map(function (v) { return v > 0 ? 1 : v < 0 ? -1 : 0; }); }); }
+    // '몇 방향이 지배하는' 32×16 기울기 흉내: Σ s_r u_r v_rᵀ + 잡음 (교육용)
+    function makeG(seed, m, n) {
+      var r = AB.rng(seed), G = [], i, j;
+      for (i = 0; i < m; i++) { G.push([]); for (j = 0; j < n; j++) G[i].push(3e-3 * r.n()); }
+      for (var q = 0; q < 6; q++) {
+        var s = Math.pow(10, -0.4 * q), u = [], v = [], nu = 0, nv = 0;
+        for (i = 0; i < m; i++) { u.push(r.n()); nu += u[i] * u[i]; }
+        for (j = 0; j < n; j++) { v.push(r.n()); nv += v[j] * v[j]; }
+        nu = Math.sqrt(nu); nv = Math.sqrt(nv);
+        for (i = 0; i < m; i++) for (j = 0; j < n; j++) G[i][j] += s * u[i] / nu * v[j] / nv;
+      }
+      return G;
+    }
+    return { T: T, mul: mul, frob: frob, scale: scale, svals: svals, polar: polar, ns: ns, sign: sign, makeG: makeG, COEF: COEF };
+  })();
+  /* =====================================================================
+     SIM: Muon 직교화 (Newton–Schulz)
+     ===================================================================== */
+  (function () {
+    var KMAX = 12, M = 32, N = 16;
+    var st = { G2: [[1.25, 0.95], [0.42, 0.62]], seed: 7, big: null, bigS: [], polarB: null, signS: [], small: [], drag: -1 };
+    var kGet = AB.range("tr-mu-k", function (v) { return String(Math.round(v)); }, function () { refresh(); });
+    var coSeg = AB.seg("tr-mu-co", function () { recompute(); });
+    var signCb = $("tr-mu-sign"); signCb.addEventListener("change", function () { refresh(); });
+    function co() { return MU.COEF[coSeg()]; }
+    function recomputeSmall() { st.small = MU.ns(st.G2, co(), KMAX); }
+    function recomputeBig() {
+      st.big = MU.ns(st.GB, co(), KMAX);
+      st.bigS = st.big.map(function (X) { return MU.svals(X); });
+      var P = st.polarB;
+      st.bigE = st.big.map(function (X) { var D = X.map(function (r, i) { return r.map(function (v, j) { return v - P[i][j]; }); }); return MU.frob(D) / Math.sqrt(N); });
+    }
+    function newBig() {
+      st.GB = MU.makeG(st.seed, M, N);
+      st.polarB = MU.polar(st.GB);
+      st.signS = MU.svals(MU.scale(MU.sign(st.GB), 1 / Math.sqrt(M)));
+      recomputeBig();
+    }
+    function recompute() { recomputeSmall(); recomputeBig(); refresh(); }
+
+    var geo = {};
+    function ellipse(ctx, A, X0, Y0, sc) {
+      ctx.beginPath();
+      for (var i = 0; i <= 96; i++) { var t = i / 96 * Math.PI * 2, c = Math.cos(t), s = Math.sin(t); var x = A[0][0] * c + A[0][1] * s, y = A[1][0] * c + A[1][1] * s; var px = X0 + x * sc, py = Y0 - y * sc; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+      ctx.closePath();
+    }
+    function arrow(ctx, x0, y0, x1, y1, col, wd) {
+      ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = wd; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      var a = Math.atan2(y1 - y0, x1 - x0), L = 8; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - L * Math.cos(a - 0.4), y1 - L * Math.sin(a - 0.4)); ctx.lineTo(x1 - L * Math.cos(a + 0.4), y1 - L * Math.sin(a + 0.4)); ctx.closePath(); ctx.fill();
+    }
+    function draw2(ctx, w, h) {
+      var P = AB.palette(), X0 = w / 2, Y0 = h / 2 + 10, sc = Math.min(w, h - 20) / 2 / 1.75, k = Math.round(kGet());
+      geo = { X0: X0, Y0: Y0, sc: sc };
+      ctx.strokeStyle = P.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, Y0); ctx.lineTo(w, Y0); ctx.moveTo(X0, 20); ctx.lineTo(X0, h); ctx.stroke();
+      // 목표: UVᵀ (단위원)
+      ctx.setLineDash([5, 4]); ctx.strokeStyle = P.text; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.arc(X0, Y0, sc, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+      // G 타원
+      var G = st.G2;
+      ellipse(ctx, G, X0, Y0, sc); ctx.fillStyle = AB.alpha(P.accent2, 0.12); ctx.fill(); ctx.strokeStyle = P.accent2; ctx.lineWidth = 2; ctx.stroke();
+      // sign(G)/√2
+      if (signCb.checked) { var S = MU.scale(MU.sign(G), 1 / Math.SQRT2); ctx.setLineDash([2, 3]); ellipse(ctx, S, X0, Y0, sc); ctx.strokeStyle = P.warn; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]); }
+      // 이전 반복
+      for (var j = 0; j < k; j++) { ellipse(ctx, st.small[j], X0, Y0, sc); ctx.strokeStyle = AB.alpha(P.accent, 0.18 + 0.4 * j / Math.max(1, k)); ctx.lineWidth = 1; ctx.stroke(); }
+      var Xk = st.small[k];
+      ellipse(ctx, Xk, X0, Y0, sc); ctx.fillStyle = AB.alpha(P.accent, 0.14); ctx.fill(); ctx.strokeStyle = P.accent; ctx.lineWidth = 2.6; ctx.stroke();
+      arrow(ctx, X0, Y0, X0 + Xk[0][0] * sc, Y0 - Xk[1][0] * sc, AB.alpha(P.accent, 0.9), 1.6);
+      arrow(ctx, X0, Y0, X0 + Xk[0][1] * sc, Y0 - Xk[1][1] * sc, AB.alpha(P.accent, 0.9), 1.6);
+      // 손잡이
+      ctx.font = "12px " + SANS; ctx.textBaseline = "middle";
+      [0, 1].forEach(function (c) {
+        var hx = X0 + G[0][c] * sc, hy = Y0 - G[1][c] * sc;
+        ctx.fillStyle = P.accent2; ctx.strokeStyle = P.bg; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(hx, hy, st.drag === c ? 9 : 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = P.text; ctx.textAlign = hx > X0 ? "left" : "right"; ctx.fillText(c ? "Ge₂" : "Ge₁", hx + (hx > X0 ? 11 : -11), hy);
+      });
+      ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.font = "11.5px " + SANS;
+      var ly = h - 8;
+      ctx.fillStyle = P.accent2; ctx.fillText("■ G", 10, ly); ctx.fillStyle = P.accent; ctx.fillText("■ X" + toSub(k), 48, ly); ctx.fillStyle = P.dim; ctx.fillText("┅ UVᵀ (원)", 98, ly);
+      if (signCb.checked) { ctx.fillStyle = P.warn; ctx.fillText("┅ sign(G)/√2", 178, ly); }
+    }
+    function toSub(k) { return String(k).split("").map(function (d) { return "₀₁₂₃₄₅₆₇₈₉"[+d]; }).join(""); }
+    var LO = -3, HI = Math.log10(4);
+    function drawS(ctx, w, h) {
+      var P = AB.palette(), k = Math.round(kGet());
+      var bx = { x: 44, y: 50, w: w - 44 - 12, h: h - 50 - 30 };
+      var Y = function (v) { var l = Math.log10(Math.max(v, Math.pow(10, LO))); return bx.y + bx.h - (l - LO) / (HI - LO) * bx.h; };
+      // 0.7~1.2 띠
+      ctx.fillStyle = AB.alpha(P.ok, 0.13); ctx.fillRect(bx.x, Y(1.2), bx.w, Y(0.7) - Y(1.2));
+      ctx.font = "11px " + MONO; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+      [0.001, 0.01, 0.1, 1].forEach(function (v) { var y = Y(v); ctx.strokeStyle = v === 1 ? AB.alpha(P.text, 0.6) : P.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(bx.x, y); ctx.lineTo(bx.x + bx.w, y); ctx.stroke(); ctx.fillStyle = P.dim; ctx.fillText(String(v), bx.x - 5, y); });
+      var s0 = st.bigS[0], sk = st.bigS[k], bw = bx.w / N;
+      for (var i = 0; i < N; i++) {
+        var x = bx.x + i * bw + bw * 0.15, ww = bw * 0.7, y = Y(sk[i]);
+        ctx.fillStyle = AB.alpha(P.accent, 0.85); ctx.fillRect(x, y, ww, bx.y + bx.h - y);
+        ctx.strokeStyle = P.accent2; ctx.lineWidth = 2; var y0 = Y(s0[i]); ctx.beginPath(); ctx.moveTo(x - 1, y0); ctx.lineTo(x + ww + 1, y0); ctx.stroke();
+        if (signCb.checked) { var ys = Y(st.signS[i]), cx = x + ww / 2; ctx.strokeStyle = P.warn; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx - 4, ys - 4); ctx.lineTo(cx + 4, ys + 4); ctx.moveTo(cx + 4, ys - 4); ctx.lineTo(cx - 4, ys + 4); ctx.stroke(); }
+      }
+      ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = P.dim; ctx.font = "11.5px " + SANS;
+      ctx.fillText("특이값 번호 1 … 16 (큰 순)", bx.x + bx.w / 2, bx.y + bx.h + 8);
+      ctx.textAlign = "right"; ctx.textBaseline = "bottom"; ctx.fillStyle = P.dim;
+      ctx.fillText((w < 400 ? "막대 X" : "막대 = X") + toSub(k) + (w < 400 ? " · 분홍 k=0" : " · 분홍 선 = k=0") + (signCb.checked ? " · × sign(G)" : "") + (w < 400 ? "" : " · 초록 띠 0.7~1.2"), w - 10, bx.y - 6);
+    }
+    newBig(); recomputeSmall();
+    var cv2 = AB.canvas($("cv-tr-muon2"), draw2, { aspect: 0.86, minHeight: 280, maxHeight: 380 });
+    var cvS = AB.canvas($("cv-tr-muonS"), drawS, { aspect: 0.86, minHeight: 280, maxHeight: 380 });
+    function f3(v) { return v >= 0.01 ? v.toFixed(3) : v.toExponential(1); }
+    function refresh() {
+      cv2.redraw(); cvS.redraw();
+      var k = Math.round(kGet());
+      var sg = MU.svals(st.G2), sx = MU.svals(st.small[k]);
+      AB.stat("tr-mu-o-g", f3(sg[0]) + ", " + f3(sg[1]));
+      AB.stat("tr-mu-o-x", f3(sx[0]) + ", " + f3(sx[1]));
+      var s = st.bigS[k];
+      AB.stat("tr-mu-o-c", sci(s[0] / Math.max(s[N - 1], 1e-12), 3) + " <small>(" + f3(s[N - 1]) + " ~ " + f3(s[0]) + ")</small>");
+      AB.stat("tr-mu-o-e", st.bigE[k].toFixed(3));
+      var ss = st.signS;
+      AB.stat("tr-mu-o-s", ss[N - 1] < 1e-6 ? "≫ 10⁴ <small>(거의 특이)</small>" : sci(ss[0] / ss[N - 1], 3));
+    }
+    bindPointer($("cv-tr-muon2"), {
+      down: function (p) {
+        var best = -1, bd = 40;
+        [0, 1].forEach(function (c) { var d = Math.hypot(geo.X0 + st.G2[0][c] * geo.sc - p[0], geo.Y0 - st.G2[1][c] * geo.sc - p[1]); if (d < bd) { bd = d; best = c; } });
+        if (best < 0) return false; st.drag = best; return true;
+      },
+      move: function (p) {
+        if (st.drag < 0) return;
+        var x = AB.clamp((p[0] - geo.X0) / geo.sc, -1.7, 1.7), y = AB.clamp((geo.Y0 - p[1]) / geo.sc, -1.7, 1.7);
+        if (Math.hypot(x, y) < 0.05) return;
+        st.G2[0][st.drag] = x; st.G2[1][st.drag] = y; recomputeSmall(); refresh();
+      },
+      up: function () { st.drag = -1; cv2.redraw(); },
+    });
+    var timer = null;
+    $("tr-mu-play").addEventListener("click", function () {
+      if (timer) { clearInterval(timer); timer = null; }
+      var k = 0; kGet.set(0); refresh();
+      timer = setInterval(function () { k++; kGet.set(k); refresh(); if (k >= 5) { clearInterval(timer); timer = null; } }, 650);
+    });
+    $("tr-mu-new").addEventListener("click", function () { st.seed++; newBig(); refresh(); });
+    refresh();
   })();
 
   AB.onTheme(function () { readFonts(); });

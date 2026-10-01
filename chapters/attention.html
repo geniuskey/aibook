@@ -14,7 +14,7 @@ https://creativecommons.org/licenses/by/4.0/
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <title>어텐션 · AIBook</title>
-<meta name="description" content="문맥이 단어의 뜻을 정한다. 쿼리·키·값과 scaled dot-product 어텐션을 직관부터 수식까지 따라가고, 어텐션 행렬을 손으로 직접 편집하며 마스크·온도·멀티헤드·인덕션 헤드·FlashAttention·GQA를 이해한다.">
+<meta name="description" content="문맥이 단어의 뜻을 정한다. 쿼리·키·값과 scaled dot-product 어텐션을 직관부터 수식까지 따라가고, 어텐션 행렬을 손으로 직접 편집하며 마스크·온도·멀티헤드·인덕션 헤드·FlashAttention·GQA·MLA·선형 어텐션(Gated DeltaNet)을 이해한다.">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
@@ -42,6 +42,7 @@ https://creativecommons.org/licenses/by/4.0/
   .at-log { font-family: var(--mono); font-size: 12.5px; width: 100%; min-width: 520px; }
   .at-log td, .at-log th { padding: 5px 8px; text-align: right; }
   .at-log tr.cur td { background: var(--accent-soft); }
+  #dl-tab td, #dl-tab th, #kv-tab td, #kv-tab th { white-space: nowrap; }
   .at-heads { display: flex; flex-wrap: wrap; gap: 6px 16px; }
   .at-sent { font-size: 17px; line-height: 2.1; margin: 18px 0; padding: 14px 18px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-sm); }
   .at-sent .tok { font-size: 14px; }
@@ -67,6 +68,7 @@ https://creativecommons.org/licenses/by/4.0/
       <li>같은 임베딩이라도 \(W_Q, W_K\)가 다르면 어텐션 패턴이 완전히 달라진다는 것을 2D 예시로 확인한다.</li>
       <li>인과 마스크·패딩 마스크, 멀티헤드 어텐션, 어텐션 싱크·이전 토큰 헤드·인덕션 헤드를 안다.</li>
       <li>어텐션의 O(n²) 비용, FlashAttention의 타일링과 온라인 소프트맥스, MHA·MQA·GQA와 KV 캐시의 관계를 수치로 설명할 수 있다.</li>
+      <li>MLA·희소 어텐션·어텐션 싱크, 그리고 선형 어텐션(Gated DeltaNet)과 하이브리드 구조가 KV 캐시를 어떻게 줄이는지 실제 모델 수치로 계산할 수 있다.</li>
     </ul>
   </header>
 
@@ -636,7 +638,7 @@ https://creativecommons.org/licenses/by/4.0/
       <div>MQA(1 KV헤드)라면<b>16 KiB</b>캐시 1/32, 품질 손실 위험</div>
     </div>
     <h3>슬라이딩 윈도우와 그 밖의 변형</h3>
-    <p><span class="term">슬라이딩 윈도우 어텐션</span>은 각 토큰이 최근 w개 토큰만 보게 해 비용을 \(O(nw)\)로 줄인다(그림 5-6의 넷째 패턴). Mistral 7B(2023)는 w = 4096을 썼고, 층을 쌓으면 정보가 층마다 w씩 더 멀리 전파되므로 L층이면 이론적으로 약 L·w 거리까지 닿는다. Gemma 2·3처럼 지역(윈도우) 층과 전역 층을 번갈아 쓰는 모델도 많다. 이 밖에 키·값을 저차원 잠재 벡터로 압축해 캐시하는 MLA(DeepSeek-V2, 2024), 소프트맥스를 커널 근사로 바꾼 선형 어텐션 계열 등이 있다. 위치 정보를 Q, K의 회전으로 넣는 RoPE는 <a href="transformer.html">6장</a>에서, KV 캐시와 디코딩 속도는 <a href="generation.html">8장</a>에서 자세히 다룬다.</p>
+    <p><span class="term">슬라이딩 윈도우 어텐션</span>은 각 토큰이 최근 w개 토큰만 보게 해 비용을 \(O(nw)\)로 줄인다(그림 5-6의 넷째 패턴). Mistral 7B(2023)는 w = 4096을 썼고, 층을 쌓으면 정보가 층마다 w씩 더 멀리 전파되므로 L층이면 이론적으로 약 L·w 거리까지 닿는다. Gemma 2·3처럼 지역(윈도우) 층과 전역 층을 번갈아 쓰는 모델도 많다. 키·값을 저차원 잠재 벡터로 압축해 캐시하는 MLA와, 소프트맥스 어텐션 층 일부를 고정 크기 상태의 선형 어텐션으로 바꾸는 하이브리드 구조는 바로 다음 두 절에서 따로 다룬다. 위치 정보를 Q, K의 회전으로 넣는 RoPE는 <a href="transformer.html">6장</a>에서, KV 캐시와 디코딩 속도는 <a href="generation.html">8장</a>에서 자세히 다룬다.</p>
     <div class="table-wrap"><table>
       <thead><tr><th>방식</th><th>점수 계산 범위</th><th>시간</th><th>KV 캐시 / 토큰·층</th><th>예</th></tr></thead>
       <tbody>
@@ -644,9 +646,191 @@ https://creativecommons.org/licenses/by/4.0/
         <tr><td>MQA</td><td>전체</td><td class="num">O(n²d)</td><td>2·1·d_head</td><td>PaLM, Falcon</td></tr>
         <tr><td>GQA</td><td>전체</td><td class="num">O(n²d)</td><td>2·g·d_head</td><td>Llama 3 (g = 8), Mistral 7B</td></tr>
         <tr><td>슬라이딩 윈도우</td><td>최근 w개</td><td class="num">O(nwd)</td><td>최대 w개 토큰만</td><td>Mistral 7B, Gemma 2·3 지역 층</td></tr>
+        <tr><td>MLA</td><td>전체</td><td class="num">O(n²d)</td><td>잠재 c + RoPE 키 (512 + 64)</td><td>DeepSeek-V2·V3</td></tr>
+        <tr><td>희소 (DSA, CSA)</td><td>인덱서가 고른 top-k</td><td class="num">O(nkd) + 인덱서</td><td>전체 저장(CSA는 4배 압축)</td><td>DeepSeek-V3.2, V4</td></tr>
+        <tr><td>선형 / Gated DeltaNet</td><td>(점수 없음) 상태 행렬</td><td class="num">O(nd²)</td><td>고정 크기 상태, 길이 무관</td><td>Qwen3.5 선형 층(3:1 하이브리드)</td></tr>
         <tr><td>FlashAttention</td><td>(구현 기법) 전체, 정확</td><td class="num">O(n²d)</td><td>변화 없음</td><td>거의 모든 현대 학습·추론</td></tr>
       </tbody>
     </table></div>
+    <h3>희소 어텐션: DSA에서 CSA·HCA로</h3>
+    <p>슬라이딩 윈도우는 "어디를 볼지"를 위치로 미리 정한다. <span class="term">희소 어텐션</span><span class="en">(sparse attention)</span>은 그 선택을 <strong>내용</strong>으로 한다. DeepSeek-V3.2(2025)의 <span class="term">DSA</span><span class="en">(DeepSeek Sparse Attention)</span>는 헤드 수가 적고 저정밀(FP8)로 도는 가벼운 <span class="term">lightning indexer</span>가 쿼리마다 모든 이전 토큰에 값싼 점수를 매기고, 그중 상위 k개(2,048개)만 골라 본 어텐션을 계산한다. 본 어텐션 비용은 \(O(n\cdot k)\)로 줄지만, 인덱서 자체는 여전히 모든 쌍을 훑고(대신 매우 싸다) 고를 후보가 있어야 하므로 KV 캐시는 그대로 남는다.</p>
+    <p>DeepSeek-V4(2026)는 여기에 <strong>압축</strong>을 겹쳤다(Hugging Face 블로그, 2026). <span class="term">CSA</span><span class="en">(Compressed Sparse Attention)</span> 층은 KV를 시퀀스 방향으로 4배 압축(학습된 가중 풀링)한 뒤 FP4 인덱서로 상위 압축 블록만 고르고, <span class="term">HCA</span><span class="en">(Heavily Compressed Attention)</span> 층은 KV를 128배 압축해 선택 없이 전부 본다. 두 종류 모두 최근 토큰을 압축 없이 보는 슬라이딩 윈도우(128) 가지가 있고, 층마다 번갈아 쌓는다. 그 결과 V4-Pro는 1M 토큰 문맥에서 V3.2 대비 KV 캐시 약 10%, 단일 토큰 추론 FLOPs 약 27%만 쓴다고 보고됐다(8헤드 GQA BF16 기준선 대비로는 약 2%).</p>
+    <figure class="diagram">
+      <svg viewBox="0 0 800 240" role="img" aria-label="희소 어텐션의 top-k 선택과 어텐션 싱크">
+        <text x="20" y="22" class="t-acc">희소 어텐션: 인덱서 점수 top-k + 최근 윈도우</text>
+        <g>
+          <rect x="30" y="80" width="22" height="25" class="f-surface"/><rect x="56" y="62" width="22" height="43" class="f-acc"/><rect x="82" y="92" width="22" height="13" class="f-surface"/><rect x="108" y="86" width="22" height="19" class="f-surface"/><rect x="134" y="96" width="22" height="9" class="f-surface"/><rect x="160" y="58" width="22" height="47" class="f-acc"/><rect x="186" y="88" width="22" height="17" class="f-surface"/><rect x="212" y="94" width="22" height="11" class="f-surface"/><rect x="238" y="84" width="22" height="21" class="f-surface"/><rect x="264" y="66" width="22" height="39" class="f-acc"/><rect x="290" y="97" width="22" height="8" class="f-surface"/><rect x="316" y="90" width="22" height="15" class="f-surface"/><rect x="342" y="70" width="22" height="35" class="f-acc"/><rect x="368" y="93" width="22" height="12" class="f-acc2-soft"/><rect x="394" y="85" width="22" height="20" class="f-acc2-soft"/><rect x="420" y="95" width="22" height="10" class="f-acc2-soft"/>
+          <text x="236" y="48" text-anchor="middle" class="t-sm">인덱서 점수 (값싼 근사)</text>
+        </g>
+        <g class="t-mono">
+          <rect x="30" y="112" width="22" height="22" rx="3" class="at-cell"/><rect x="56" y="112" width="22" height="22" rx="3" class="f-acc-soft"/><rect x="82" y="112" width="22" height="22" rx="3" class="at-cell"/><rect x="108" y="112" width="22" height="22" rx="3" class="at-cell"/><rect x="134" y="112" width="22" height="22" rx="3" class="at-cell"/><rect x="160" y="112" width="22" height="22" rx="3" class="f-acc-soft"/><rect x="186" y="112" width="22" height="22" rx="3" class="at-cell"/><rect x="212" y="112" width="22" height="22" rx="3" class="at-cell"/><rect x="238" y="112" width="22" height="22" rx="3" class="at-cell"/><rect x="264" y="112" width="22" height="22" rx="3" class="f-acc-soft"/><rect x="290" y="112" width="22" height="22" rx="3" class="at-cell"/><rect x="316" y="112" width="22" height="22" rx="3" class="at-cell"/><rect x="342" y="112" width="22" height="22" rx="3" class="f-acc-soft"/><rect x="368" y="112" width="22" height="22" rx="3" class="f-acc2-soft"/><rect x="394" y="112" width="22" height="22" rx="3" class="f-acc2-soft"/><rect x="420" y="112" width="22" height="22" rx="3" class="f-acc2-soft"/>
+          <rect x="446" y="112" width="22" height="22" rx="3" class="f-acc"/><text x="457" y="128" text-anchor="middle" class="t-mono" style="fill:var(--on-accent)">q</text>
+        </g>
+        <path d="M457 134 Q 262 214 67 134" class="s-acc" style="fill:none"/>
+        <path d="M457 134 Q 314 194 171 134" class="s-acc" style="fill:none"/>
+        <path d="M457 134 Q 366 176 275 134" class="s-acc" style="fill:none"/>
+        <path d="M457 134 Q 405 164 353 134" class="s-acc" style="fill:none"/>
+        <text x="30" y="226" class="t-sm">파란 칸: top-k로 선택된 키(여기서 k = 4), 보조색: 항상 보는 최근 윈도우</text>
+        <path d="M500 30 V225" class="s-axis" style="stroke-dasharray:4 4"/>
+        <text x="520" y="22" class="t-acc">어텐션 싱크 (gpt-oss)</text>
+        <text x="520" y="50" class="t-mono">aⱼ = e^sⱼ / (e^b + Σₗ e^sₗ)</text>
+        <g>
+          <rect x="530" y="150" width="30" height="40" class="f-acc-soft"/><rect x="570" y="120" width="30" height="70" class="f-acc-soft"/><rect x="610" y="170" width="30" height="20" class="f-acc-soft"/><rect x="650" y="160" width="30" height="30" class="f-acc-soft"/>
+          <rect x="710" y="90" width="30" height="100" class="f-warn-soft" style="stroke:var(--warn);stroke-dasharray:4 3"/>
+          <path d="M520 190 H760" class="s-axis"/>
+          <text x="605" y="208" text-anchor="middle" class="t-sm">실제 토큰 가중치 (합 &lt; 1)</text>
+          <text x="725" y="208" text-anchor="middle" class="t-sm">싱크 몫</text>
+          <text x="725" y="82" text-anchor="middle" class="t-sm">버려짐</text>
+        </g>
+      </svg>
+      <figcaption><b>그림 5-10.</b> 왼쪽: 희소 어텐션은 값싼 인덱서 점수로 상위 k개 키만 골라(파랑) 최근 윈도우(보조색)와 함께 본다. 오른쪽: gpt-oss의 어텐션 싱크는 헤드마다 학습된 로짓 b를 소프트맥스 분모에만 더해, "볼 것이 없을 때" 가중치를 어디에도 주지 않을 수 있게 한다. 교육용 도식이며 막대 높이는 임의 값이다.</figcaption>
+    </figure>
+
+    <h3>어텐션 싱크를 구조에 넣다</h3>
+    <p>8절(어텐션 패턴 동물원)에서 실제 모델의 많은 헤드가 첫 토큰에 큰 가중치를 몰아 준다는 것, 즉 <strong>어텐션 싱크</strong>를 보았다. 소프트맥스 가중치의 합은 반드시 1이라, 지금 가져올 정보가 없는 헤드도 어딘가에는 가중치를 줘야 하기 때문이다. 슬라이딩 윈도우에서는 첫 토큰이 곧 창 밖으로 밀려나 싱크가 사라지고 품질이 무너지는데, StreamingLLM(Xiao 등, 2023)은 처음 몇 토큰의 KV를 항상 남겨 이 문제를 풀었다. gpt-oss(OpenAI, 2025)는 이것을 아예 구조에 넣었다. 헤드마다 학습되는 스칼라 \(b_h\)를 소프트맥스 분모에만 더해, 가중치 합이 1보다 작아질 수 있게 한 것이다.</p>
+    <div class="formula">$$ a_{ij} = \frac{e^{s_{ij}}}{e^{b_h} + \sum_{l} e^{s_{il}}},\qquad \sum_j a_{ij} = 1 - \frac{e^{b_h}}{e^{b_h} + \sum_l e^{s_{il}}} &lt; 1 $$
+      <div class="where">\(b_h\)는 값이 없는 '가상의 키' 하나의 점수라고 생각하면 된다. 그 키로 간 몫은 출력에 아무것도 더하지 않는다. gpt-oss는 128토큰 슬라이딩 윈도우 층과 전체 어텐션 층을 1:1로 번갈아 쓰므로, 창 밖으로 밀려나지 않는 싱크가 특히 중요하다.</div></div>
+
+    <div class="callout"><strong>2026년의 기본값</strong>
+      <p>대형 공개 모델에서 순수 MHA는 거의 사라졌다. 출발점은 <strong>RoPE + GQA(또는 MLA) + FlashAttention 커널</strong>이고, 긴 문맥을 위해 여기에 하나를 더 얹는다. ① 지역/전역 층 교대(gpt-oss는 윈도우 128과 전체 층 1:1, Gemma 계열은 지역 층 위주), ② 내용 기반 희소 선택(DeepSeek-V3.2 DSA, V4 CSA/HCA), ③ 일부 층을 고정 크기 상태의 선형 어텐션으로 교체한 하이브리드(Qwen3.5의 3:1). 어느 쪽이든 목표는 같다. <strong>KV 캐시와 디코딩 비용이 문맥 길이에 비례해 늘어나는 것을 막는 것</strong>이다. 다음 두 절에서 MLA와 선형 어텐션을 직접 계산해 본다.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 11 -->
+  <section id="mla">
+    <h2>MLA: 키와 값을 잠재 벡터 하나로 압축한다</h2>
+    <p>GQA는 K·V 헤드 <strong>수</strong>를 줄여 캐시를 줄인다. 쿼리 헤드 여럿이 같은 키를 쓰니 표현력이 조금 줄어드는 대가가 있다. DeepSeek-V2(2024)가 도입하고 V3(2024)·V3.2가 이어 쓴 <span class="term">MLA</span><span class="en">(Multi-head Latent Attention)</span>는 다른 길을 택한다. 토큰마다 \(d_c\)차원(DeepSeek-V3: 512)의 <strong>잠재 벡터</strong> \(c_t\) 하나만 캐시해 두고, 헤드별 키와 값은 쓸 때마다 업프로젝션으로 만들어 낸다.</p>
+    <div class="formula">$$ c_t = W_{DKV}\,h_t \in \mathbb{R}^{d_c},\qquad k^{C}_{t,i} = W_{UK,i}\,c_t,\qquad v_{t,i} = W_{UV,i}\,c_t \quad (i = 1..H) $$
+      <div class="where">\(h_t\): 토큰 t의 은닉 벡터(d = 7,168), \(W_{DKV}\): 다운프로젝션(d → 512), \(W_{UK,i}, W_{UV,i}\): 헤드 i의 업프로젝션(512 → 128). 캐시에는 \(c_t\)만 남는다. 쿼리도 비슷하게 1,536차원으로 압축하지만, 이는 학습 중 활성값 메모리를 줄이기 위한 것이고 캐시와는 무관하다.</div></div>
+    <p>그런데 디코딩 때마다 512 → 128 업프로젝션을 128개 헤드, 수천 개 과거 토큰에 대해 다시 계산하면 오히려 느려진다. 여기서 <span class="term">흡수 트릭</span><span class="en">(absorb trick)</span>이 나온다. 점수는 행렬곱의 결합 법칙으로 다시 쓸 수 있다.</p>
+    <div class="formula">$$ q_{t,i}^{\top} k^{C}_{s,i} = q_{t,i}^{\top} W_{UK,i}\, c_s = \big(\underbrace{W_{UK,i}^{\top} q_{t,i}}_{\tilde q_{t,i}\,\in\,\mathbb{R}^{512}}\big)^{\top} c_s,\qquad \sum_s a_{ts}\, v_{s,i} = W_{UV,i} \sum_s a_{ts}\, c_s $$
+      <div class="where">\(W_{UK,i}\)는 쿼리 쪽으로, \(W_{UV,i}\)는 출력 투영 \(W_O\) 쪽으로 '흡수'된다. 그러면 과거 토큰마다 K, V를 복원할 필요 없이 캐시된 \(c_s\)와 바로 내적한다. 디코딩 때의 MLA는 <strong>모든 헤드가 512차원 'KV 헤드' 하나를 공유하는 MQA</strong>처럼 돌지만, 학습된 헤드별 업프로젝션 덕분에 표현력은 MHA에 가깝다.</div></div>
+    <p>한 가지 걸림돌은 RoPE다(<a href="transformer.html">6장</a>). RoPE는 위치 s에 따라 달라지는 회전 \(R_s\)를 키에 곱하므로 \(q^\top R_t^\top R_s W_{UK} c_s\)에서 \(W_{UK}\)를 쿼리 쪽으로 옮길 수 없다(회전이 중간에 끼어 있다). DeepSeek은 <span class="term">분리 RoPE</span><span class="en">(decoupled RoPE)</span>로 이를 피했다. 위치 정보만 담는 작은 키 \(k^R_t = \mathrm{RoPE}(W_{KR} h_t) \in \mathbb{R}^{64}\)를 따로 만들어 모든 헤드가 공유하게 하고, 이것도 캐시한다. 그래서 토큰·층당 캐시는 \(512 + 64 = 576\)개 원소다.</p>
+    <figure class="diagram">
+      <svg viewBox="0 0 800 250" role="img" aria-label="MLA의 잠재 벡터 캐시와 업프로젝션">
+        <defs><marker id="at-ar9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--text-dim)"/></marker></defs>
+        <rect x="20" y="100" width="80" height="44" rx="8" class="f-elev"/><text x="60" y="120" text-anchor="middle" class="t">hₜ</text><text x="60" y="136" text-anchor="middle" class="t-sm">d = 7168</text>
+        <path d="M100 112 C140 112, 140 80, 172 80" class="s-line" marker-end="url(#at-ar9)"/>
+        <path d="M100 132 C140 132, 140 172, 172 172" class="s-line" marker-end="url(#at-ar9)"/>
+        <text x="132" y="70" text-anchor="middle" class="t-mono">W_DKV</text><text x="132" y="196" text-anchor="middle" class="t-mono">W_KR</text>
+        <rect x="174" y="58" width="150" height="44" rx="8" class="f-acc-soft" style="stroke:var(--accent);stroke-width:2"/><text x="249" y="78" text-anchor="middle" class="t">잠재 cₜ (512)</text><text x="249" y="94" text-anchor="middle" class="t-sm">캐시</text>
+        <rect x="174" y="150" width="150" height="44" rx="8" class="f-acc2-soft" style="stroke:var(--accent-2);stroke-width:2"/><text x="249" y="170" text-anchor="middle" class="t">RoPE 키 kᴿ (64)</text><text x="249" y="186" text-anchor="middle" class="t-sm">캐시 · 헤드 공유</text>
+        <path d="M324 72 H392" class="s-line" marker-end="url(#at-ar9)"/><path d="M324 88 C360 88, 360 130, 392 130" class="s-line" marker-end="url(#at-ar9)"/>
+        <text x="358" y="64" text-anchor="middle" class="t-mono">W_UK</text><text x="340" y="126" text-anchor="end" class="t-mono">W_UV</text>
+        <rect x="394" y="52" width="170" height="36" rx="6" class="f-surface"/><text x="479" y="75" text-anchor="middle" class="t-mono">k₁ᶜ … k₁₂₈ᶜ (128씩)</text>
+        <rect x="394" y="112" width="170" height="36" rx="6" class="f-ok-soft"/><text x="479" y="135" text-anchor="middle" class="t-mono">v₁ … v₁₂₈ (128씩)</text>
+        <path d="M324 172 H392" class="s-line" marker-end="url(#at-ar9)"/>
+        <rect x="394" y="156" width="170" height="36" rx="6" class="f-surface"/><text x="479" y="179" text-anchor="middle" class="t-mono">kᵢ = [kᵢᶜ ; kᴿ] (192)</text>
+        <text x="479" y="220" text-anchor="middle" class="t-sm">점선 상자 안의 K·V는 흡수 트릭 덕분에 만들지 않는다</text>
+        <path d="M384 44 H574 V200 H384 Z" class="s-axis" style="fill:none;stroke-dasharray:5 4"/>
+        <text x="600" y="62" class="t-acc">토큰·층당 캐시 원소</text>
+        <text x="600" y="90" class="t-mono">MHA  128×(192+128) = 40,960</text>
+        <text x="600" y="114" class="t-mono">GQA8   8×(192+128) =  2,560</text>
+        <text x="600" y="138" class="t-mono" style="fill:var(--accent)">MLA        512+64 =    576</text>
+        <text x="600" y="162" class="t-mono">MQA     1×(192+128) =    320</text>
+        <text x="600" y="194" class="t-sm">DeepSeek-V3 차원 기준</text>
+      </svg>
+      <figcaption><b>그림 5-11.</b> MLA(DeepSeek-V3 차원). 캐시에는 512차원 잠재 벡터 cₜ와 헤드가 공유하는 64차원 RoPE 키만 들어간다. 헤드별 키·값(점선 상자)은 수식상 존재하지만, 흡수 트릭 덕분에 디코딩 때 실제로 만들 필요가 없다.</figcaption>
+    </figure>
+    <div class="at-kv">
+      <div>DeepSeek-V3 토큰당 KV (MLA, 61층)<b>68.6 KiB</b>576 × 61 × 2 B</div>
+      <div>같은 차원을 MHA로 캐시하면<b>4.77 MiB</b>약 71배</div>
+      <div>128K 토큰 문맥 하나 (MLA)<b>8.6 GiB</b>MHA라면 약 610 GiB</div>
+      <div>참고: Llama 3 8B (GQA, 32층)<b>128 KiB</b>훨씬 작은 모델인데도 더 크다</div>
+    </div>
+
+    <div class="sim" id="sim-kvcmp">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>KV 캐시 방식 비교: 문맥 길이에 따른 메모리</h3></div>
+      <div class="sim-body side">
+        <div class="sim-view"><canvas id="cv-kvc" class="at-touch"></canvas><div class="hint">그래프를 좌우로 드래그해 문맥 길이 n 선택</div></div>
+        <div class="sim-controls">
+          <div class="ctrl"><span>기준 모델</span><div class="seg" id="kv-pre"><button data-value="l3" class="on">Llama 3 8B</button><button data-value="ds3">DeepSeek-V3</button><button data-value="oss">gpt-oss-120b</button><button data-value="q35">Qwen3.5-397B</button></div></div>
+          <label class="ctrl"><span>문맥 길이 n <output id="kv-n-out"></output></span><input type="range" id="kv-n" min="10" max="20" step="0.05" value="17"></label>
+          <label class="ctrl"><span>GQA 그룹(KV 헤드) 수 g <output id="kv-g-out"></output></span><input type="range" id="kv-g" min="1" max="32" step="1" value="8"></label>
+          <label class="ctrl"><span>MLA 잠재 차원 d_c <output id="kv-c-out"></output></span><input type="range" id="kv-c" min="64" max="1024" step="32" value="512"></label>
+          <label class="ctrl"><span>슬라이딩 윈도우 w <output id="kv-w-out"></output></span><input type="range" id="kv-w" min="6" max="15" step="1" value="12"></label>
+          <div class="ctrl"><span>풀 어텐션 층 비율 (윈도우·하이브리드)</span><div class="seg" id="kv-fr"><button data-value="0">0</button><button data-value="0.125">1/8</button><button data-value="0.25">1/4</button><button data-value="0.5" class="on">1/2</button></div></div>
+        </div>
+      </div>
+      <div class="sim-panel"><table class="at-log" id="kv-tab"></table></div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">이 모델의 실제 방식</span><span class="v" id="kv-o-act">—</span></div>
+        <div class="stat"><span class="k">그 방식의 전체 KV @ n</span><span class="v" id="kv-o-tot">—</span></div>
+        <div class="stat"><span class="k">MHA 대비</span><span class="v" id="kv-o-ratio">—</span></div>
+        <div class="stat"><span class="k">80 GB GPU 대비</span><span class="v" id="kv-o-gpu">—</span></div>
+      </div>
+      <div class="sim-note">한 시퀀스(배치 1)의 전체 KV 메모리를 로그-로그 축으로 그린다. KV는 BF16(2 B), 선형 어텐션 상태는 FP32(4 B)로 셌다. 윈도우·하이브리드 방식에서 '풀 어텐션 층'은 g개 KV 헤드의 GQA다. 기준 모델의 층 수·헤드 수·head_dim은 각 모델의 Hugging Face config.json 값이고, 선형 상태는 Qwen3.5의 Gated DeltaNet(V 헤드 64 × 128 × 128)을, 나머지 모델에는 같은 꼴(H × d_head × d_head)을 가정했다. 해볼 것: ① Llama 3 8B에서 n을 128K로 두면 GQA 16 GiB, MHA 64 GiB다. 표의 기울기가 모두 1(길이에 정비례)인데 윈도우·하이브리드만 꺾이는 것을 보자. ② gpt-oss-120b 프리셋(실제: 윈도우 128 + 풀 1:1)에서 비율을 0으로 바꾸면 메모리는 상수가 되지만, 그것은 먼 토큰을 직접 볼 길이 사라진다는 뜻이다. ③ DeepSeek-V3에서 d_c를 512 → 256으로 줄이면 캐시는 거의 절반이 된다. 실제 모델이 512를 고른 것은 품질과의 타협이다. ④ Qwen3.5 프리셋에서 n = 1K로 내리면 고정 상태(약 180 MiB) 때문에 하이브리드가 오히려 순수 GQA보다 크다. 두 곡선이 만나는 교차점(약 2K 토큰)을 찾고, 262K에서 얼마나 벌어지는지 보자.</div>
+    </div>
+    <p>MLA의 비용은 연산 쪽에서 나타난다. 흡수 후의 점수 계산은 헤드마다 512 + 64 = 576차원 내적이라 GQA의 128차원보다 무겁고, 디코딩 때 바이트당 연산량이 높아 메모리 대역폭 대신 연산 유닛을 더 쓰게 된다. KV 캐시를 읽는 것이 병목인 긴 문맥 디코딩(<a href="generation.html">8장</a>)에서는 이것이 오히려 장점이다. DeepSeek-V4는 MLA 대신 KV 헤드 하나(head_dim 512)를 쓰는 어텐션에 CSA/HCA 압축을 결합했는데(공개 config 기준), "토큰당 캐시를 극단적으로 줄인다"는 방향은 같다.</p>
+  </section>
+
+  <!-- ============================================================ 12 -->
+  <section id="linear">
+    <h2>선형 어텐션과 Gated DeltaNet: 고정 크기 기억</h2>
+    <p>지금까지의 모든 변형은 결국 과거 토큰의 K, V를 (줄여서라도) <strong>전부</strong> 들고 있다. 그래서 KV 캐시는 문맥 길이 n에 비례하고, 토큰 하나를 생성할 때마다 n개 키를 훑어야 한다. 정반대 방향의 해법은 과거를 <strong>고정 크기 행렬 하나</strong>에 요약해 두는 것이다. <span class="term">선형 어텐션</span><span class="en">(linear attention, Katharopoulos 등 2020)</span>은 소프트맥스의 \(e^{q\cdot k}\)를 특징 사상의 내적 \(\phi(q)^\top\phi(k)\)로 바꾸면 결합 법칙으로 순서를 바꿀 수 있다는 데서 출발한다(아래에서는 \(\phi\)를 생략하고 정규화된 \(q, k\)를 쓴다).</p>
+    <div class="formula">$$ o_t = \sum_{s\le t} v_s\,(k_s^\top q_t) = \Big(\underbrace{\sum_{s\le t} v_s k_s^\top}_{S_t\ \in\ \mathbb{R}^{d_v\times d_k}}\Big)\, q_t,\qquad S_t = S_{t-1} + v_t k_t^\top $$
+      <div class="where">\(S_t\)는 키 → 값 연상 기억(associative memory) 행렬이다. 쓰기는 외적 \(v_t k_t^\top\)를 더하는 것, 읽기는 \(S_t q_t\)다. 크기가 \(d_v\times d_k\)로 고정이라 문맥이 1M 토큰이어도 메모리는 같고, 토큰당 계산도 \(O(d^2)\)로 일정한 RNN이 된다. 학습 때는 청크 단위 병렬 알고리즘으로 GPU를 꽉 채운다.</div></div>
+    <p>문제는 덧셈만으로는 <strong>지울 수 없다</strong>는 것이다. 키들이 서로 직교하면 \(S k_i = v_i\)로 정확히 읽히지만, \(d_k\)차원에는 직교 벡터가 \(d_k\)개뿐이다. 그보다 많이 쓰거나, 같은 키에 새 값을 쓰면 옛 값과 겹쳐(superposition) 읽기가 흐려진다. <span class="term">델타 규칙</span><span class="en">(delta rule; DeltaNet, Schlag 등 2021 · Yang 등 2024)</span>은 쓰기 전에 지금 기억이 그 키에 대해 무엇을 내놓는지 읽고, <strong>오차만큼만</strong> 고쳐 쓴다.</p>
+    <div class="formula">$$ S_t = S_{t-1} + \beta_t\,(v_t - S_{t-1}k_t)\,k_t^\top = S_{t-1}\,(I - \beta_t k_t k_t^\top) + \beta_t\, v_t k_t^\top $$
+      <div class="where">\(\beta_t\in[0,1]\): 쓰기 강도(토큰마다 학습된 값). 이는 손실 \(\tfrac12\lVert S k_t - v_t\rVert^2\)에 대한 학습률 \(\beta_t\)의 경사하강 한 걸음과 같다(<a href="training.html">3장</a>). \(\lVert k_t\rVert = 1,\ \beta_t = 1\)이면 쓰고 난 뒤 \(S_t k_t = v_t\)가 정확히 성립한다. 즉 같은 키의 옛 값은 <strong>덮어쓰기</strong>된다.</div></div>
+    <p><span class="term">Gated DeltaNet</span><span class="en">(Yang, Kautz, Hatamizadeh, 2024)</span>은 여기에 Mamba-2식 감쇠 게이트 \(\alpha_t\in(0,1)\)를 곱해 오래된 기억을 서서히 잊게 한다. \(S_t = \alpha_t S_{t-1}(I - \beta_t k_t k_t^\top) + \beta_t v_t k_t^\top\), 출력은 \(o_t = S_t q_t\)다. Kimi Linear(2025)의 KDA(Kimi Delta Attention)는 이 게이트를 채널별로 세분한 개량판이다.</p>
+    <figure class="diagram">
+      <svg viewBox="0 0 800 260" role="img" aria-label="KV 캐시와 고정 크기 상태, 3대1 하이브리드 스택">
+        <text x="20" y="22" class="t-acc">소프트맥스 어텐션: KV 캐시가 자란다</text>
+        <g>
+          <rect x="30" y="40" width="16" height="30" class="f-acc2-soft"/><rect x="48" y="40" width="16" height="30" class="f-acc2-soft"/><rect x="66" y="40" width="16" height="30" class="f-acc2-soft"/><rect x="84" y="40" width="16" height="30" class="f-acc2-soft"/><rect x="102" y="40" width="16" height="30" class="f-acc2-soft"/><rect x="120" y="40" width="16" height="30" class="f-acc2-soft"/><rect x="138" y="40" width="16" height="30" class="f-acc2-soft"/><rect x="156" y="40" width="16" height="30" class="f-acc2-soft"/><rect x="174" y="40" width="16" height="30" class="f-acc2-soft"/><rect x="192" y="40" width="16" height="30" class="f-acc2-soft"/><rect x="210" y="40" width="16" height="30" class="f-acc2-soft" style="stroke-dasharray:3 2"/>
+          <text x="240" y="60" class="t-mono">… n개 (k, v)</text>
+          <text x="30" y="92" class="t-sm">메모리 O(n), 토큰당 읽기 O(n)</text>
+        </g>
+        <text x="20" y="130" class="t-acc">선형 어텐션 / DeltaNet: 상태 S 하나</text>
+        <g>
+          <rect x="30" y="146" width="80" height="80" class="f-acc-soft" style="stroke:var(--accent);stroke-width:2"/>
+          <path d="M50 146 V226 M70 146 V226 M90 146 V226 M30 166 H110 M30 186 H110 M30 206 H110" class="s-axis" style="stroke-dasharray:2 3"/>
+          <text x="70" y="244" text-anchor="middle" class="t-mono">S: d_v × d_k</text>
+          <text x="130" y="170" class="t-mono">쓰기: S ← αS(I−βkkᵀ)+βvkᵀ</text>
+          <text x="130" y="194" class="t-mono">읽기: o = S q</text>
+          <text x="130" y="218" class="t-sm">메모리 O(1) — 문맥 길이와 무관</text>
+        </g>
+        <path d="M420 30 V245" class="s-axis" style="stroke-dasharray:4 4"/>
+        <text x="440" y="22" class="t-acc">Qwen3.5: 3 : 1 하이브리드 (× 15 = 60층)</text>
+        <g>
+          <rect x="450" y="40" width="220" height="30" rx="6" class="f-acc-soft"/><text x="560" y="60" text-anchor="middle" class="t">Gated DeltaNet → MoE</text>
+          <rect x="450" y="78" width="220" height="30" rx="6" class="f-acc-soft"/><text x="560" y="98" text-anchor="middle" class="t">Gated DeltaNet → MoE</text>
+          <rect x="450" y="116" width="220" height="30" rx="6" class="f-acc-soft"/><text x="560" y="136" text-anchor="middle" class="t">Gated DeltaNet → MoE</text>
+          <rect x="450" y="154" width="220" height="30" rx="6" class="f-acc2-soft" style="stroke:var(--accent-2);stroke-width:2"/><text x="560" y="174" text-anchor="middle" class="t">Gated Attention → MoE</text>
+          <path d="M690 40 H700 V184 H690" class="s-line" style="fill:none"/>
+          <text x="708" y="108" class="t-mono">× 15</text>
+          <text x="450" y="210" class="t-sm">위 3층: 고정 상태(64헤드 × 128 × 128)</text>
+          <text x="450" y="230" class="t-sm">아래 1층: KV 캐시를 갖는 정밀 검색 담당</text>
+        </g>
+      </svg>
+      <figcaption><b>그림 5-12.</b> 왼쪽: 소프트맥스 어텐션은 과거 (k, v)를 모두 저장하고, 선형 어텐션 계열은 고정 크기 상태 행렬 하나로 요약한다. 오른쪽: Qwen3.5-397B-A17B(2026)의 층 배치. 선형 층 3개마다 풀 어텐션 층 1개를 둬, KV 캐시는 전체 층의 1/4에서만 생긴다(Qwen 모델 카드·config.json).</figcaption>
+    </figure>
+
+    <div class="sim" id="sim-delta">
+      <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>연상 기억 상태 행렬: 덧셈 vs 델타 규칙 vs 소프트맥스</h3></div>
+      <div class="sim-body side">
+        <div class="sim-view"><canvas id="cv-delta" class="at-touch"></canvas><div class="hint">질의 q 막대를 위아래로 드래그 · 아래 표의 행을 누르면 q = 그 키</div></div>
+        <div class="sim-controls">
+          <div class="at-btns"><button class="btn primary" id="dl-step">다음 쌍 쓰기 ▶</button><button class="btn" id="dl-all">모두 쓰기</button><button class="btn" id="dl-reset">처음부터</button></div>
+          <label class="ctrl"><span>쓰기 강도 β (델타) <output id="dl-beta-out"></output></span><input type="range" id="dl-beta" min="0" max="1" step="0.05" value="1"></label>
+          <label class="ctrl"><span>감쇠 α (두 방식 공통) <output id="dl-alpha-out"></output></span><input type="range" id="dl-alpha" min="0.5" max="1" step="0.01" value="1"></label>
+          <label class="ctrl"><span>소프트맥스 날카로움 τ <output id="dl-tau-out"></output></span><input type="range" id="dl-tau" min="1" max="30" step="0.5" value="10"></label>
+        </div>
+      </div>
+      <div class="sim-panel"><table class="at-log" id="dl-tab"></table></div>
+      <div class="sim-readout">
+        <div class="stat"><span class="k">기록한 쌍 · 키 수 / d</span><span class="v" id="dl-o-cnt">—</span></div>
+        <div class="stat"><span class="k">q에 가장 가까운 키</span><span class="v" id="dl-o-near">—</span></div>
+        <div class="stat"><span class="k">복원 오차: 덧셈 / 델타 / softmax</span><span class="v" id="dl-o-err">—</span></div>
+        <div class="stat"><span class="k">상태 크기 vs KV 캐시</span><span class="v" id="dl-o-mem">—</span></div>
+      </div>
+      <div class="sim-note">d = 4인 교육용 예시다. 키는 단위 벡터이고, 쌍 1~4의 키는 서로 직교, 쌍 5는 쌍 1과 <strong>같은 키에 새 값</strong>(사실의 갱신), 쌍 6은 키 2·3과 비스듬한 키, 쌍 7·8은 무작위 키다. 위 그림의 두 히트맵이 덧셈만 하는 순수 선형 어텐션의 S와 델타 규칙의 S이고, 오른쪽 막대는 질의 q로 읽어 낸 값(목표 = 그 키에 마지막으로 쓴 값)이다. softmax는 같은 쌍들을 KV 캐시에 모두 저장하고 \(\mathrm{softmax}(\tau\,q\cdot k)\)로 읽는다. 해볼 것: ① 쌍 1~4만 쓰면 세 방식 모두 오차 0이다(직교 키 d개까지는 완벽). ② 쌍 5를 쓰고 키 1을 질의하면 덧셈은 v₁ + v₅가 섞여 나오고, 델타(β = 1)는 v₅로 정확히 덮어쓴다. softmax도 같은 키 두 개의 평균을 내 틀린다. ③ 쌍 6~8까지 쓰면 d = 4를 넘는 순간 델타도 예전 쌍의 오차가 커진다. 이것이 고정 크기 상태의 용량 한계이고, 하이브리드 모델이 풀 어텐션 층을 일부 남기는 이유다. ④ α를 0.8로 낮추면 오래된 쌍부터 희미해진다. ⑤ β를 0.5로 낮추면 한 번에 반만 고쳐 써서 덮어쓰기가 불완전해진다.</div>
+    </div>
+    <p>그래서 실제 모델은 <strong>섞는다</strong>. 선형 층은 문맥을 값싸게 요약하고 국소 패턴을 잡으며, 소수의 풀 어텐션 층이 "정확히 그 토큰을 다시 찾아오는" 검색을 맡는다. Qwen3-Next-80B-A3B(2025)가 시작한 3:1 배치를 Qwen3.5(2026)가 플래그십까지 확장했고, 풀 어텐션 층에도 출력에 시그모이드 게이트를 곱하는 'Gated Attention'을 쓴다. NVIDIA Nemotron-H 계열처럼 Mamba-2 층 위주에 어텐션 층을 조금 섞는 하이브리드도 있다. 블록 수준의 배치는 <a href="transformer.html">6장</a>에서 다시 본다.</p>
+    <div class="callout warn"><strong>선형 어텐션이 소프트맥스를 완전히 대체하지 못하는 이유</strong>
+      <p>상태 \(S\)의 원소 수는 \(d_v\times d_k\)로 정해져 있다. 그 안에 n개 토큰의 정보를 모두 손실 없이 담을 수는 없다. 긴 문서 속 특정 문장 그대로 인용하기(needle-in-a-haystack), 긴 목록에서 정확한 항목 찾기 같은 <strong>정밀 검색</strong>은 KV를 다 들고 있는 소프트맥스 어텐션이 여전히 강하다. 하이브리드의 3:1 같은 비율은 이 정밀도와 메모리 사이의 경험적 타협이다.</p>
+    </div>
   </section>
 
   <!-- ============================================================ summary -->
@@ -660,7 +844,9 @@ https://creativecommons.org/licenses/by/4.0/
       <li>인과 마스크(j &gt; i를 −∞)는 디코더 언어 모델의 병렬 학습과 KV 캐시를 가능하게 한다. 패딩 마스크는 [PAD] 열을 막는다. 마스크는 소프트맥스 <strong>전에</strong> 더한다.</li>
       <li>멀티헤드는 d_model을 h개 헤드(d_head = d/h)로 나눠 여러 관계를 병렬로 본 뒤 Concat·W_O로 섞는다. 실제 헤드에는 어텐션 싱크, 이전 토큰 헤드, 인덕션 헤드 같은 반복 패턴이 있다.</li>
       <li>어텐션 쌍 계산은 O(n²d), 점수 행렬 메모리는 O(h·n²)이다. FlashAttention은 타일링과 온라인 소프트맥스로 n×n 행렬을 만들지 않고 <strong>정확히 같은</strong> 결과를 O(n) 추가 메모리로 낸다.</li>
-      <li>크로스 어텐션은 Q와 K·V의 출처가 다르다. MQA·GQA는 KV 헤드를 공유해 캐시를 줄인다(Llama 3 8B: 32 Q헤드, 8 KV헤드 → 토큰당 128 KiB). 슬라이딩 윈도우는 범위를 최근 w개로 제한한다.</li>
+      <li>크로스 어텐션은 Q와 K·V의 출처가 다르다. MQA·GQA는 KV 헤드를 공유해 캐시를 줄인다(Llama 3 8B: 32 Q헤드, 8 KV헤드 → 토큰당 128 KiB). 슬라이딩 윈도우는 범위를 최근 w개로 제한한다. 희소 어텐션(DeepSeek DSA, V4의 CSA/HCA)은 인덱서로 top-k를 고르거나 KV를 압축하고, gpt-oss의 어텐션 싱크는 소프트맥스 분모에 학습된 로짓을 더해 가중치를 '버릴 곳'을 준다.</li>
+      <li>MLA는 K·V 대신 저차원 잠재 벡터(DeepSeek-V3: 512 + RoPE 64)만 캐시하고, 흡수 트릭으로 업프로젝션을 쿼리·출력 쪽에 합친다. 토큰당 KV는 68.6 KiB로 같은 차원 MHA의 약 1/71이다.</li>
+      <li>선형 어텐션은 과거를 고정 크기 상태 \(S = \sum v k^\top\)에 요약한다. 델타 규칙 \(S \leftarrow \alpha S(I-\beta kk^\top)+\beta vk^\top\)는 오차만큼 고쳐 써서 덮어쓰기가 가능하지만, 용량(약 d개 키)은 한정된다. 그래서 Qwen3.5처럼 선형 층 3개당 풀 어텐션 1개를 두는 하이브리드가 쓰인다.</li>
     </ol>
   </section>
 
@@ -704,6 +890,18 @@ https://creativecommons.org/licenses/by/4.0/
         <button class="opt">약 512 KiB — 어텐션 FLOPs를 1/4로 줄인다</button>
         <button class="opt">약 1 MiB — 층 수를 줄인다</button>
       </div><div class="quiz-exp">2(K, V) × 32층 × 8헤드 × 128 × 2 B = 131,072 B = 128 KiB. MHA(32 KV 헤드)였다면 512 KiB다. GQA는 쿼리 헤드 4개가 K·V 헤드 하나를 공유하게 해 캐시와 메모리 대역폭을 1/4로 줄이고, 쿼리 쪽 패턴 다양성은 유지한다.</div></div>
+      <div class="quiz-q"><p>7. MLA에서 '흡수 트릭'이 가능한 이유와, RoPE용 키를 따로(64차원) 두는 이유를 옳게 짝지은 것은?</p><div class="opts">
+        <button class="opt">행렬곱이 교환 법칙을 만족하기 때문 — RoPE가 값 벡터에만 적용되기 때문</button>
+        <button class="opt" data-correct>\(q^\top W_{UK} c = (W_{UK}^\top q)^\top c\)로 결합 순서를 바꿀 수 있기 때문 — 위치마다 다른 회전이 \(W_{UK}\)와 c 사이에 끼면 흡수할 수 없기 때문</button>
+        <button class="opt">잠재 벡터가 원-핫이기 때문 — RoPE가 쿼리에만 필요하기 때문</button>
+        <button class="opt">업프로젝션이 항등 행렬이기 때문 — 캐시를 늘리기 위해</button>
+      </div><div class="quiz-exp">점수는 결합 법칙으로 \((W_{UK}^\top q)^\top c_s\)가 되어 키를 복원하지 않고 캐시된 c와 바로 내적한다. 그러나 RoPE는 위치 s마다 다른 회전 \(R_s\)를 키에 곱하므로 \(q^\top R_t^\top R_s W_{UK} c_s\)에서 \(W_{UK}\)를 쿼리 쪽으로 옮길 수 없다. 그래서 위치 정보는 헤드가 공유하는 별도 64차원 키 \(k^R\)에 담아 함께 캐시한다(토큰·층당 576원소).</div></div>
+      <div class="quiz-q"><p>8. d<sub>k</sub> = 4인 연상 기억 상태 S에, 단위 키 k₁에 값 v₁을 쓴 뒤 같은 k₁에 새 값 v₅를 썼다. k₁로 읽으면(α = 1)?</p><div class="opts">
+        <button class="opt">덧셈(선형 어텐션)과 델타 규칙 모두 v₅</button>
+        <button class="opt" data-correct>덧셈은 v₁ + v₅(옛 값과 섞임), 델타 규칙(β = 1)은 정확히 v₅</button>
+        <button class="opt">덧셈은 v₅, 델타 규칙은 (v₁ + v₅)/2</button>
+        <button class="opt">둘 다 0 — 같은 키를 두 번 쓰면 상쇄된다</button>
+      </div><div class="quiz-exp">덧셈은 \(S = v_1k_1^\top + v_5k_1^\top\)라 \(Sk_1 = v_1+v_5\)다. 델타 규칙은 두 번째 쓰기에서 \(S \leftarrow S + (v_5 - Sk_1)k_1^\top\)로 오차만 더하므로 \(Sk_1 = v_5\)가 된다. KV를 모두 저장하는 소프트맥스 어텐션은 같은 키 두 개에 같은 점수를 줘 두 값의 평균을 낸다(실제 모델에서는 위치 정보가 이를 구별한다).</div></div>
     </div>
   </section>
 </main>
@@ -1649,6 +1847,267 @@ https://creativecommons.org/licenses/by/4.0/
       move: function (x, y, s) { var per = (geo.th - geo.top) / (HI - LO); xs[s.j] = Math.round(AB.clamp(s.v0 + (s.y0 - y) / per, LO, HI) * 10) / 10; update(); },
     });
     update();
+  })();
+
+  /* =====================================================================
+     9. KV 캐시 방식 비교 (MHA/GQA/MQA/MLA/윈도우/하이브리드 선형)
+     ===================================================================== */
+  (function () {
+    var cvEl = $("cv-kvc"); if (!cvEl) return;
+    // 층·헤드·head_dim: 각 모델 HF config.json. DeepSeek-V3의 MHA 키는 128(nope)+64(rope)=192.
+    var PRE = {
+      l3: { name: "Llama 3 8B", L: 32, H: 32, dk: 128, dv: 128, g: 8, c: 512, w: 12, fr: "0.5", lin: [32, 128, 128], act: "gqa", actTxt: "GQA (KV 헤드 8)" },
+      ds3: { name: "DeepSeek-V3", L: 61, H: 128, dk: 192, dv: 128, g: 8, c: 512, w: 12, fr: "0.25", lin: [128, 128, 128], act: "mla", actTxt: "MLA (512 + 64)" },
+      oss: { name: "gpt-oss-120b", L: 36, H: 64, dk: 64, dv: 64, g: 8, c: 512, w: 7, fr: "0.5", lin: [64, 64, 64], act: "swa", actTxt: "윈도우 128 + 풀 1:1 (GQA 8)" },
+      q35: { name: "Qwen3.5-397B", L: 60, H: 32, dk: 256, dv: 256, g: 2, c: 512, w: 12, fr: "0.25", lin: [64, 128, 128], act: "hyb", actTxt: "DeltaNet 3 : 풀 1 (GQA 2)" },
+    };
+    var M = [
+      { id: "mha", name: "MHA" }, { id: "gqa", name: "GQA" }, { id: "mqa", name: "MQA" },
+      { id: "mla", name: "MLA" }, { id: "swa", name: "슬라이딩 윈도우" }, { id: "hyb", name: "하이브리드 선형" },
+    ];
+    var cur = PRE.l3;
+    var pow2 = function (v) { return Math.round(Math.pow(2, v)); };
+    var kfmt = function (n) { return n >= 1048576 ? (n / 1048576).toFixed(n % 1048576 ? 2 : 0) + "M" : n >= 1024 ? Math.round(n / 1024) + "K" : String(n); };
+    var getN = AB.range("kv-n", function (v) { return kfmt(pow2(v)); }, function () { upd(); });
+    var getG = AB.range("kv-g", function (v) { return String(v); }, function () { upd(); });
+    var getC = AB.range("kv-c", function (v) { return String(v) + " + 64"; }, function () { upd(); });
+    var getW = AB.range("kv-w", function (v) { return kfmt(pow2(v)); }, function () { upd(); });
+    var getFr = AB.seg("kv-fr", function () { upd(); });
+    AB.seg("kv-pre", function (v) { load(v); });
+    function load(k) {
+      cur = PRE[k];
+      $("kv-g").max = cur.H; getG.set(cur.g); getC.set(cur.c); getW.set(cur.w);
+      getFr.set(cur.fr, false);
+      upd();
+    }
+    function cfg() { return { g: Math.min(getG(), cur.H), c: getC(), w: pow2(getW()), fr: Number(getFr()) }; }
+    /** 전체 KV 바이트 (배치 1). KV: BF16 2 B, 선형 상태: FP32 4 B */
+    function mem(id, n, o) {
+      var m = cur, per = m.dk + m.dv, nf = Math.round(m.L * o.fr);
+      switch (id) {
+        case "mha": return n * m.L * m.H * per * 2;
+        case "gqa": return n * m.L * o.g * per * 2;
+        case "mqa": return n * m.L * per * 2;
+        case "mla": return n * m.L * (o.c + 64) * 2;
+        case "swa": return (nf * n + (m.L - nf) * Math.min(n, o.w)) * o.g * per * 2;
+        case "hyb": return nf * n * o.g * per * 2 + (m.L - nf) * m.lin[0] * m.lin[1] * m.lin[2] * 4;
+      }
+    }
+    function desc(id, o) {
+      var m = cur, nf = Math.round(m.L * o.fr);
+      switch (id) {
+        case "mha": return m.H + " KV 헤드 × " + m.L + "층";
+        case "gqa": return o.g + " KV 헤드";
+        case "mqa": return "1 KV 헤드";
+        case "mla": return "c " + o.c + " + RoPE 64";
+        case "swa": return "w " + kfmt(o.w) + ", 풀 " + nf + "/" + m.L + "층";
+        case "hyb": return "풀 " + nf + "/" + m.L + "층 + 상태 " + m.lin.join("×");
+      }
+    }
+    var geo = null, X0 = 1024, X1 = 1048576;
+    var cv = AB.canvas(cvEl, function (ctx, w, h) {
+      var P = AB.palette(), o = cfg(), n = pow2(getN());
+      var cols = [P.series[0], P.series[1], P.series[2], P.series[3], P.series[4], P.text];
+      var series = [], lo = Infinity, hi = 0;
+      M.forEach(function (mm, i) {
+        var d = [];
+        for (var e = 10; e <= 20.001; e += 0.125) { var x = Math.pow(2, e), y = mem(mm.id, x, o); d.push([x, y]); lo = Math.min(lo, y); hi = Math.max(hi, y); }
+        series.push({ data: d, color: cols[i], width: mm.id === cur.act ? 3.5 : 1.8, dash: mm.id === "mqa" ? [5, 4] : mm.id === "mla" ? [2, 3] : [] });
+      });
+      var e0 = Math.floor(Math.log2(lo) / 5) * 5, e1 = Math.ceil(Math.log2(hi) / 5) * 5, y0 = Math.pow(2, e0), y1 = Math.pow(2, e1), yt = [];
+      for (var ee = e0; ee <= e1; ee += 5) yt.push(Math.pow(2, ee));
+      var narrow = w < 480;
+      var box = { x: 58, y: 14, w: w - 58 - 14, h: h - 14 - (narrow ? 72 : 48) };
+      var pts = M.map(function (mm, i) { return { x: n, y: mem(mm.id, n, o), color: cols[i], r: mm.id === cur.act ? 5 : 3.5 }; });
+      var ch = AB.chart(ctx, box, {
+        x: [X0, X1], y: [y0, y1], logX: true, logY: true, xLabel: "문맥 길이 n (토큰)", yTicks: yt,
+        xTicks: [1024, 8192, 65536, 524288], xFmt: kfmt,
+        yFmt: function (v) { return AB.bytes(v, 3); },
+        series: series, vlines: [{ x: n, color: P.text, label: "n = " + kfmt(n), dash: [4, 3] }], points: pts,
+      });
+      geo = ch;
+      // 80 GB 선
+      if (80e9 > y0 && 80e9 < y1) {
+        ctx.save(); ctx.strokeStyle = P.bad; ctx.setLineDash([6, 4]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(box.x, ch.Y(80e9)); ctx.lineTo(box.x + box.w, ch.Y(80e9)); ctx.stroke(); ctx.setLineDash([]);
+        font(ctx, 10.5, false); ctx.fillStyle = P.bad; ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText("80 GB", box.x + 4, ch.Y(80e9) - 2); ctx.restore();
+      }
+    }, { get height() { return cvEl.parentElement.clientWidth < 520 ? 330 : 340; } });
+    function upd() {
+      var o = cfg(), n = pow2(getN());
+      cv.redraw();
+      var P = AB.palette(), cols = [P.series[0], P.series[1], P.series[2], P.series[3], P.series[4], P.text];
+      var mha = mem("mha", n, o);
+      var rows = "<tr><th style='text-align:left'>방식</th><th style='text-align:left'>설정</th><th>토큰당 평균</th><th>전체 @ " + kfmt(n) + "</th><th>MHA 대비</th></tr>";
+      M.forEach(function (mm, i) {
+        var t = mem(mm.id, n, o), isA = mm.id === cur.act;
+        rows += "<tr" + (isA ? " class='cur'" : "") + "><td style='text-align:left'><span style='display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:" + cols[i] + "'></span>" + mm.name + (isA ? " ★" : "") + "</td><td style='text-align:left'>" + desc(mm.id, o) + "</td><td>" + AB.bytes(t / n, 3) + "</td><td>" + AB.bytes(t, 3) + "</td><td>" + (mha / t >= 10 ? "1/" + Math.round(mha / t) : (t / mha).toFixed(2) + "×") + "</td></tr>";
+      });
+      $("kv-tab").innerHTML = rows;
+      var a = mem(cur.act, n, o);
+      AB.stat("kv-o-act", cur.actTxt);
+      AB.stat("kv-o-tot", AB.bytes(a, 3) + "<small>" + AB.bytes(a / n, 3) + "/토큰</small>");
+      AB.stat("kv-o-ratio", "1/" + (mha / a).toFixed(mha / a >= 100 ? 0 : 1));
+      AB.stat("kv-o-gpu", (a / 80e9 * 100).toFixed(a / 80e9 < 0.1 ? 2 : 1) + "%");
+    }
+    bindDrag(cvEl, {
+      down: function (x) { if (!geo) return null; set(x); return {}; },
+      move: function (x) { set(x); },
+    });
+    function set(x) {
+      var b = geo.box, t = AB.clamp((x - b.x) / b.w, 0, 1);
+      var e = Math.log2(X0) + t * (Math.log2(X1) - Math.log2(X0));
+      getN.set(Math.round(e * 20) / 20);
+    }
+    AB.onTheme(upd);
+    load("l3");
+  })();
+
+  /* =====================================================================
+     10. 연상 기억 상태 행렬: 덧셈(선형 어텐션) vs 델타 규칙 vs 소프트맥스
+     ===================================================================== */
+  (function () {
+    var cvEl = $("cv-delta"); if (!cvEl) return;
+    var D = 4;
+    function unit(v) { var n = AB.norm(v) || 1; return v.map(function (x) { return x / n; }); }
+    // 교육용 쌍: 1~4 직교 키, 5 = 키1 재사용(새 값), 6 = 키2·3 사이, 7·8 무작위
+    var r = AB.rng(11), Q = [];
+    for (var i = 0; i < D; i++) {
+      var v = []; for (var j = 0; j < D; j++) v.push(r.n());
+      Q.forEach(function (u) { var p = AB.dot(v, u); v = v.map(function (x, m) { return x - p * u[m]; }); });
+      Q.push(unit(v));
+    }
+    var PAIRS = [];
+    function val() { var a = []; for (var j = 0; j < D; j++) a.push(Math.round(r.n() * 10) / 10); return a; }
+    for (i = 0; i < D; i++) PAIRS.push({ k: unit(Q[i]), v: val(), note: "직교" });
+    PAIRS.push({ k: unit(Q[0]), v: val(), note: "키 1 재사용", same: 0 });
+    PAIRS.push({ k: unit(AB.add(Q[1], AB.scale(Q[2], 0.7))), v: val(), note: "키 2·3 사이" });
+    for (i = 0; i < 2; i++) { var rk = []; for (j = 0; j < D; j++) rk.push(r.n()); PAIRS.push({ k: unit(rk), v: val(), note: "무작위" }); }
+    var t = 0, q = PAIRS[0].k.slice();
+    var getB = AB.range("dl-beta", function (v) { return v.toFixed(2); }, function () { upd(); });
+    var getA = AB.range("dl-alpha", function (v) { return v.toFixed(2); }, function () { upd(); });
+    var getT = AB.range("dl-tau", function (v) { return v.toFixed(1); }, function () { upd(); });
+    $("dl-step").addEventListener("click", function () { if (t < PAIRS.length) t++; upd(); });
+    $("dl-all").addEventListener("click", function () { t = PAIRS.length; upd(); });
+    $("dl-reset").addEventListener("click", function () { t = 0; upd(); });
+    function zeros() { var S = []; for (var a = 0; a < D; a++) { S.push([]); for (var b = 0; b < D; b++) S[a].push(0); } return S; }
+    function states() {
+      var Sl = zeros(), Sd = zeros(), al = getA(), be = getB();
+      for (var s = 0; s < t; s++) {
+        var k = PAIRS[s].k, v = PAIRS[s].v, pred = AB.matvec(Sd, k);
+        for (var a = 0; a < D; a++) for (var b = 0; b < D; b++) {
+          Sl[a][b] = al * Sl[a][b] + v[a] * k[b];
+          // S ← α S (I − β k kᵀ) + β v kᵀ  =  α S − αβ (S k) kᵀ + β v kᵀ
+          Sd[a][b] = al * Sd[a][b] - al * be * pred[a] * k[b] + be * v[a] * k[b];
+        }
+      }
+      return { lin: Sl, del: Sd };
+    }
+    function soft(qv) {
+      if (!t) return [0, 0, 0, 0];
+      var sc = [], s; for (s = 0; s < t; s++) sc.push(getT() * AB.dot(qv, PAIRS[s].k));
+      var p = AB.softmax(sc), o = [0, 0, 0, 0];
+      for (s = 0; s < t; s++) for (var a = 0; a < D; a++) o[a] += p[s] * PAIRS[s].v[a];
+      return o;
+    }
+    function target(i) { // 키 i에 마지막으로 쓴 값
+      var key = PAIRS[i].k, best = PAIRS[i].v;
+      for (var s = i + 1; s < t; s++) if (AB.dot(PAIRS[s].k, key) > 0.999) best = PAIRS[s].v;
+      return best;
+    }
+    function relErr(o, tg) { return AB.norm(AB.sub(o, tg)) / (AB.norm(tg) || 1); }
+    function nearest() {
+      var best = -1, bc = -2, qn = unit(q);
+      for (var s = 0; s < PAIRS.length; s++) { var c = AB.dot(qn, PAIRS[s].k); if (c > bc + 1e-9) { bc = c; best = s; } }
+      // 같은 키가 여러 개면 기록된 것 중 가장 앞(원래) 인덱스
+      return { i: best, c: bc };
+    }
+    var st = null, geo = null;
+    var cv = AB.canvas(cvEl, function (ctx, w, h) {
+      if (!st) return;
+      var P = AB.palette(), narrow = w < 600;
+      var pw = narrow ? w / 2 : w / 4, ph = narrow ? (h - 26) / 2 : h - 26;
+      var panels = narrow ? [[0, 0], [pw, 0], [0, ph], [pw, ph]] : [[0, 0], [pw, 0], [2 * pw, 0], [3 * pw, 0]];
+      var mx = 0.5; [st.lin, st.del].forEach(function (S) { S.forEach(function (row) { row.forEach(function (x) { mx = Math.max(mx, Math.abs(x)); }); }); });
+      function heat(S, ox, oy, title) {
+        font(ctx, 12, false, true); ctx.fillStyle = P.text; ctx.textAlign = "left"; ctx.textBaseline = "top";
+        ctx.fillText(title, ox + 10, oy + 6);
+        var cell = Math.min((pw - 24) / D, (ph - 40) / D), x0 = ox + (pw - cell * D) / 2, y0 = oy + 28;
+        for (var a = 0; a < D; a++) for (var b = 0; b < D; b++) {
+          var tv = S[a][b] / mx;
+          ctx.fillStyle = AB.diverge(tv); ctx.fillRect(x0 + b * cell + 1, y0 + a * cell + 1, cell - 2, cell - 2);
+          font(ctx, cell > 40 ? 11 : 9.5, true); ctx.fillStyle = ink(tv); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText(S[a][b].toFixed(2), x0 + b * cell + cell / 2, y0 + a * cell + cell / 2);
+        }
+      }
+      heat(st.lin, panels[0][0], panels[0][1], "덧셈 S (선형 어텐션)");
+      heat(st.del, panels[1][0], panels[1][1], "델타 규칙 S");
+      // 질의 막대
+      var ox = panels[2][0], oy = panels[2][1], bx0 = ox + 22, bw = (pw - 34) / D, top = oy + 30, bot = oy + ph - 26, mid = (top + bot) / 2, sc = (bot - top) / 2 / 1.2;
+      font(ctx, 12, false, true); ctx.fillStyle = P.text; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("질의 q (드래그)", ox + 10, oy + 6);
+      ctx.strokeStyle = P.axis; ctx.beginPath(); ctx.moveTo(bx0, mid); ctx.lineTo(ox + pw - 10, mid); ctx.stroke();
+      for (var a = 0; a < D; a++) {
+        var y = mid - q[a] * sc;
+        ctx.fillStyle = AB.alpha(P.accent, 0.85); ctx.fillRect(bx0 + a * bw + 4, Math.min(mid, y), bw - 8, Math.abs(y - mid));
+        ctx.fillStyle = P.accent; ctx.fillRect(bx0 + a * bw + 2, y - 2, bw - 4, 4);
+        font(ctx, 10, true); ctx.fillStyle = P.dim; ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(q[a].toFixed(2), bx0 + a * bw + bw / 2, bot + 6);
+      }
+      geo = { bx0: bx0, bw: bw, mid: mid, sc: sc, top: top, bot: bot, ox: ox, oy: oy, pw: pw, ph: ph };
+      // 출력 비교
+      ox = panels[3][0]; oy = panels[3][1];
+      font(ctx, 12, false, true); ctx.fillStyle = P.text; ctx.textAlign = "left"; ctx.textBaseline = "top"; ctx.fillText("읽은 값 (4개 성분)", ox + 10, oy + 6);
+      var outs = [[st.tg, null], [st.oL, P.accent2], [st.oD, P.accent], [st.oS, P.warn]];
+      var om = 1.5; outs.forEach(function (o) { if (o[0]) o[0].forEach(function (x) { om = Math.max(om, Math.abs(x)); }); });
+      var x1 = ox + 12, gw = (pw - 22) / D, t2 = oy + 46, b2 = oy + ph - 8, m2 = (t2 + b2) / 2, s2 = (b2 - t2) / 2 / om;
+      ctx.strokeStyle = P.axis; ctx.beginPath(); ctx.moveTo(x1, m2); ctx.lineTo(ox + pw - 8, m2); ctx.stroke();
+      for (a = 0; a < D; a++) {
+        var sub = (gw - 6) / 3;
+        for (var k = 1; k < 4; k++) {
+          var vv = outs[k][0][a], yy = m2 - vv * s2;
+          ctx.fillStyle = outs[k][1]; ctx.fillRect(x1 + a * gw + 3 + (k - 1) * sub, Math.min(m2, yy), sub - 1.5, Math.max(1, Math.abs(yy - m2)));
+        }
+        if (st.tg) { var ty = m2 - st.tg[a] * s2; ctx.strokeStyle = P.text; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x1 + a * gw + 1, ty); ctx.lineTo(x1 + a * gw + gw - 1, ty); ctx.stroke(); ctx.lineWidth = 1; }
+      }
+      font(ctx, 10, false); ctx.textBaseline = "top"; ctx.textAlign = "left";
+      var lx = ox + 10, ly = oy + 24, items = [["덧셈", P.accent2], ["델타", P.accent], ["softmax", P.warn], ["— 목표", P.text]];
+      items.forEach(function (it) { ctx.fillStyle = it[1]; if (it[0][0] !== "—") ctx.fillRect(lx, ly + 2, 8, 8); ctx.fillStyle = it[0][0] === "—" ? P.text : P.dim; ctx.fillText(it[0], lx + (it[0][0] === "—" ? 0 : 11), ly); lx += measure(it[0], 10) + 18; });
+    }, { get height() { return cvEl.parentElement.clientWidth < 600 ? 440 : 250; } });
+    function upd() {
+      var S = states(), nr = nearest(), exact = nr.c > 0.995 && nr.i < t;
+      var tg = exact ? target(nr.i) : null;
+      st = { lin: S.lin, del: S.del, oL: AB.matvec(S.lin, q), oD: AB.matvec(S.del, q), oS: soft(q), tg: tg };
+      cv.redraw();
+      var hd = "<tr><th>#</th><th style='text-align:left'>키 k (단위 벡터)</th><th style='text-align:left'>값 v</th><th style='text-align:left'>상태</th><th>덧셈 오차</th><th>델타 오차</th><th>softmax 오차</th></tr>";
+      $("dl-tab").innerHTML = hd + PAIRS.map(function (p, i) {
+        var on = i < t, over = false;
+        for (var s = i + 1; s < t; s++) if (AB.dot(PAIRS[s].k, p.k) > 0.999) over = true;
+        var cells = "<td>—</td><td>—</td><td>—</td>";
+        if (on) {
+          var tgi = target(i);
+          var e = [relErr(AB.matvec(S.lin, p.k), tgi), relErr(AB.matvec(S.del, p.k), tgi), relErr(soft(p.k), tgi)];
+          cells = e.map(function (x) { return "<td" + (x > 0.2 ? " style='color:var(--bad)'" : x < 0.02 ? " style='color:var(--ok)'" : "") + ">" + (x * 100).toFixed(1) + "%</td>"; }).join("");
+        }
+        var stt = !on ? "대기" : over ? "덮어씀 → #" + (function () { for (var s = t - 1; s > i; s--) if (AB.dot(PAIRS[s].k, p.k) > 0.999) return s + 1; })() : "기록";
+        return "<tr class='at-click" + (i === t - 1 ? " cur" : "") + "' data-i='" + i + "' style='" + (on ? "" : "opacity:.55") + "'><td>" + (i + 1) + "</td><td style='text-align:left'>[" + p.k.map(function (x) { return x.toFixed(2); }).join(", ") + "]</td><td style='text-align:left'>[" + p.v.map(function (x) { return x.toFixed(1); }).join(", ") + "]</td><td style='text-align:left'>" + p.note + " · " + stt + "</td>" + cells + "</tr>";
+      }).join("");
+      var distinct = 0; for (var s = 0; s < t; s++) { var dup = false; for (var u = 0; u < s; u++) if (AB.dot(PAIRS[s].k, PAIRS[u].k) > 0.999) dup = true; if (!dup) distinct++; }
+      AB.stat("dl-o-cnt", t + " 쌍 · 키 " + distinct + " / " + D + (distinct > D ? ' <small style="color:var(--bad)">용량 초과</small>' : ""));
+      AB.stat("dl-o-near", "#" + (nr.i + 1) + " <small>cos " + nr.c.toFixed(3) + (nr.i < t ? "" : " · 아직 안 씀") + "</small>");
+      AB.stat("dl-o-err", tg ? [st.oL, st.oD, st.oS].map(function (o) { return (relErr(o, tg) * 100).toFixed(1) + "%"; }).join(" / ") : "<small>q가 기록된 키와 일치할 때</small>");
+      AB.stat("dl-o-mem", D * D + " <small>vs KV " + (2 * D * t) + " 원소</small>");
+    }
+    $("dl-tab").addEventListener("click", function (e) {
+      var tr = e.target.closest("tr[data-i]"); if (!tr) return;
+      q = PAIRS[Number(tr.dataset.i)].k.slice(); upd();
+    });
+    bindDrag(cvEl, {
+      down: function (x, y) {
+        if (!geo || x < geo.ox || x > geo.ox + geo.pw || y < geo.oy || y > geo.oy + geo.ph) return null;
+        var a = Math.floor((x - geo.bx0) / geo.bw); if (a < 0 || a >= D) return null;
+        return { a: a };
+      },
+      move: function (x, y, s) { q[s.a] = Math.round(AB.clamp((geo.mid - y) / geo.sc, -1.2, 1.2) * 100) / 100; upd(); },
+    });
+    upd();
   })();
 })();
 </script>

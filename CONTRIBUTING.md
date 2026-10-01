@@ -113,4 +113,4 @@ SVG 안 유틸 클래스: `.t .t-dim .t-mono .t-acc`(텍스트), `.s-line .s-axi
 AI 전용: `.tok`(토큰 칩, `.alt` `.dim` 변형) / `.toks`(토큰 줄), `.ab-input`(텍스트 입력, `textarea.ab-input`), `.mat`(행렬 숫자 표, 셀 배경은 `AB.heat`로), `.sim-panel`(시뮬레이터 안의 추가 패널, 가로 스크롤 허용).
 
 ## 챕터 간 연결
-본문에서 다른 장을 언급할 때는 `<a href="attention.html">5장</a>`처럼 링크한다. 슬러그: vector(01) neuron(02) training(03) embedding(04) attention(05) transformer(06) llm(07) generation(08) quantization(09) rag(10) design(11) glossary(12).
+본문에서 다른 장을 언급할 때는 `<a href="attention.html">5장</a>`처럼 링크한다. 슬러그: vector(01) neuron(02) training(03) embedding(04) attention(05) transformer(06) llm(07) generation(08) quantization(09) rag(10) agent(11) design(12) glossary(13).

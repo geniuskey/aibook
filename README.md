@@ -38,19 +38,11 @@ python3 -m http.server 8000   # → http://localhost:8000
 
 Copyright © 2026 Edwin (geniuskey) 및 AIBook 기여자.
 
-이 프로젝트는 자료의 종류에 따라 다음 라이선스를 적용합니다. 별도 고지가 있는 자료는 해당 고지를 따릅니다.
+이 프로젝트는 파일 확장자가 아니라 해당 부분의 용도에 따라 다음 라이선스를 적용합니다. 별도 고지가 있는 자료는 해당 고지를 따릅니다.
 
 | 적용 대상 | 라이선스 | 이용 조건 |
 |---|---|---|
 | JS·CSS·Python·HTML의 실행 코드 | [MIT](LICENSE-MIT) | 수정·재배포·상업적 이용 가능. 저작권 및 라이선스 고지 유지 |
 | 교재 본문·그림·문제·해설 | [CC BY 4.0](LICENSE-CC-BY-4.0) | 수업 자료·번역·상업적 교재에 활용 가능. 저작자·출처·라이선스 표시 및 변경 사실 명시 |
 
-`js/`, `css/`, HTML의 페이지 구조·스크립트·스타일, 교재에 포함된 실행 가능한 코드 예제와 향후 추가되는 Python 코드는 MIT를 적용합니다. 개발·기여 안내인 `README.md`, `CONTRIBUTING.md`도 MIT를 적용합니다.
-
-`index.html`, `chapters/*.html`에 포함된 교재 본문·수식·그림(인라인 SVG 및 시뮬레이터가 그리는 교육용 도표 포함)·문제·해설은 CC BY 4.0을 적용합니다. 그림을 생성하는 실행 코드는 MIT, 그 결과인 교재 그림은 CC BY 4.0을 적용합니다. 프로젝트 자체 제작 아이콘(`favicon.svg`, `favicon.ico`, `apple-touch-icon.png`)도 CC BY 4.0을 적용합니다. HTML 파일 전체를 재배포하는 경우 코드와 교재 내용에 각각 적용되는 고지를 함께 유지하세요.
-
-교재 내용의 출처 표기 예시(수정한 경우 실제 변경 사항을 덧붙이세요):
-
-> AIBook — 인터랙티브 AI 교과서, Edwin (geniuskey) 및 AIBook 기여자, © 2026. 출처: https://aibook.euiyun.com/ · CC BY 4.0: https://creativecommons.org/licenses/by/4.0/ · 변경 사항: 일부 번역 및 그림 수정.
-
-KaTeX, three.js, 외부 폰트 등 제3자 자료는 각 저작권자의 라이선스를 따르며, 위 라이선스로 재허가하지 않습니다. 교재를 비롯한 자료는 각 라이선스의 보증 부인 및 책임 제한 조건에 따라 제공됩니다.
+HTML·JS 안의 실행 코드와 교육 콘텐츠도 이 구분을 따릅니다. README 및 작성 가이드의 설명 문장은 CC BY 4.0, 문서 안의 실행 코드 예제는 MIT입니다. 상세 적용 범위·재사용 조건·출처 표시 예시·외부 자료 안내는 [LICENSE.md](LICENSE.md)를 참고하세요.

@@ -1,5 +1,11 @@
 # AIBook 챕터 작성 가이드
 
+## 기여 자료의 라이선스
+
+기여하는 실행 코드와 개발 문서는 [MIT](LICENSE), 교재 본문·그림·문제·해설은 [CC BY 4.0](LICENSE-CONTENT)으로 제공합니다. HTML 안의 코드와 교재 내용도 이 구분을 따릅니다. 자세한 범위와 출처 표기 예시는 [README의 라이선스 안내](README.md#라이선스)를 참고하세요.
+
+제3자 자료를 추가할 때는 원저작자·출처·라이선스를 표시하고, 별도 이용 조건이 있으면 해당 자료 가까이에 명시하세요.
+
 빌드 과정 없는 정적 사이트다. `index.html` + `chapters/<slug>.html` + 공통 `css/style.css`, `js/common.js`.
 로컬 실행: `python3 -m http.server 8000` → http://localhost:8000 (file://로 열어도 동작하게 classic script만 사용한다. ES module 금지.)
 

@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<title>용어집 &amp; 종합 퀴즈 · AIBook</title>
+<meta name="description" content="벡터에서 LLM 서빙까지, AI 핵심 용어 120여 개를 한국어·영어·약어로 검색하고, 전 챕터를 아우르는 20문항 종합 퀴즈로 실력을 점검한다.">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<link rel="stylesheet" href="../css/style.css">
+<script src="../js/common.js"></script>
+<style>
+  [hidden] { display: none !important; }
+  .gl-tools { display: grid; gap: 10px; margin-bottom: 18px; }
+  .gl-tools .row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+  .gl-tools .lbl { font-size: 13px; color: var(--text-dim); }
+  .gl-tools .seg button { font-size: 12.5px; padding: 4px 9px; }
+  .gl-search { margin-bottom: 0 !important; }
+  .gl-count { font-size: 13px; color: var(--text-faint); margin-left: auto; }
+  #gl-list { max-height: min(78vh, 980px); overflow-y: auto; overscroll-behavior: contain; padding: 2px 6px 2px 2px; border-radius: 12px; }
+  .gl-group { position: sticky; top: 0; z-index: 1; background: var(--bg); font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--accent); letter-spacing: .06em; margin: 14px 0 0; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+  .gl-group:first-child { margin-top: 0; }
+  .gl-item h4 .abbr { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--accent-2); background: var(--accent-2-soft); border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: 1px; }
+  .gl-item mark { background: color-mix(in srgb, var(--warn) 35%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+  .gl-empty { padding: 24px; text-align: center; color: var(--text-dim); border: 1px dashed var(--border); border-radius: 12px; }
+
+  .fq { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .fq-top { display: flex; justify-content: space-between; gap: 10px; padding: 12px 18px 8px; font-size: 13px; color: var(--text-dim); font-family: var(--mono); }
+  .fq-bar { height: 6px; background: var(--surface-2); margin: 0 18px; border-radius: 3px; overflow: hidden; }
+  .fq-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s ease; }
+  .fq-card, .fq-result { padding: 18px 20px 20px; }
+  .fq-ch { font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: .04em; margin-bottom: 6px; }
+  .fq-q { font-weight: 700; font-size: 17px; margin: 0 0 14px !important; }
+  .fq-opts { display: grid; gap: 8px; }
+  .fq-opt { text-align: left; font: inherit; font-size: 15px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; line-height: 1.5; display: flex; gap: 10px; align-items: baseline; }
+  .fq-opt .n { font-family: var(--mono); font-size: 12px; color: var(--text-faint); flex: none; }
+  .fq-opt:hover:not(:disabled) { border-color: var(--accent); }
+  .fq-opt:disabled { cursor: default; }
+  .fq-opt.right { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); font-weight: 600; }
+  .fq-opt.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+  .fq-exp { margin-top: 12px; font-size: 15px; color: var(--text-dim); padding: 12px 14px; border-radius: 8px; background: var(--surface); }
+  .fq-exp b.ok { color: var(--ok); } .fq-exp b.bad { color: var(--bad); }
+  .fq-nav { display: flex; justify-content: flex-end; margin-top: 14px; }
+  .fq-result { text-align: center; }
+  .fq-rank { font-size: 13px; letter-spacing: .12em; color: var(--text-faint); font-weight: 700; }
+  .fq-title { font-size: clamp(24px, 5vw, 32px); font-weight: 800; letter-spacing: -0.02em; margin: 4px 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .fq-big { font-family: var(--mono); font-size: 40px; font-weight: 700; }
+  .fq-big small { font-size: 18px; color: var(--text-dim); }
+  .fq-chart { margin: 16px 0; text-align: left; background: var(--canvas-bg); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .fq-chart canvas { display: block; width: 100%; }
+  .fq-review { text-align: left; font-size: 14px; color: var(--text-dim); margin: 0 0 16px; }
+  .fq-review a { font-weight: 600; }
+</style>
+</head>
+<body data-chapter="glossary">
+<main class="chapter">
+  <header class="chapter-hero">
+    <div class="eyebrow">Chapter 12</div>
+    <h1>용어집 &amp; 종합 퀴즈</h1>
+    <p class="lead">AI 분야는 약어와 영어 용어의 숲이다. GEMM, GELU, BPE, GQA, RoPE, RMSNorm, KV 캐시, BF16, AWQ, HNSW, RRF… 이 장은 책 전체에 흩어진 핵심 용어를 한곳에 모은 사전이자, 벡터에서 LLM 서빙까지 전 범위를 점검하는 마무리 시험이다.</p>
+    <ul class="objectives">
+      <li>한국어·영어·약어 어느 쪽으로든 용어를 찾아 정의와 해당 챕터로 바로 이동할 수 있다.</li>
+      <li>내적과 행렬곱에서 어텐션, LLM 학습·생성, 양자화, RAG, 서빙 설계까지 각 장의 핵심 개념과 실제 수치를 스스로 점검한다.</li>
+      <li>틀린 문제의 챕터를 확인하고 약한 부분을 다시 공부할 계획을 세운다.</li>
+    </ul>
+    <p style="margin-top:16px"><a href="#glossary">→ 용어집 바로 가기</a> · <a href="#final-quiz">→ 종합 퀴즈 바로 풀기</a></p>
+  </header>
+
+  <section id="glossary">
+    <h2>용어집</h2>
+    <p>검색창에 한국어(예: <code>어텐션</code>), 영어(예: <code>residual</code>), 약어(예: <code>GQA</code>) 중 아무것이나 입력하면 바로 걸러진다. 정의 본문도 검색 대상이다. 챕터 칩으로 범위를 좁히고, 가나다순 또는 챕터순으로 묶어 볼 수 있다. 정의에 적힌 수치는 해당 모델의 공개 자료 기준이며, 최신 하드웨어·모델 값은 '약'으로 표기했다.</p>
+    <div class="gl-tools">
+      <input type="search" class="gl-search" id="gl-q" placeholder="용어 검색: 예) 임베딩, softmax, KV" autocomplete="off" aria-label="용어 검색">
+      <div class="row">
+        <span class="lbl">챕터</span>
+        <div class="seg" id="gl-ch">
+          <button data-value="all" class="on">전체</button>
+          <button data-value="vector">01 벡터</button>
+          <button data-value="neuron">02 뉴런</button>
+          <button data-value="training">03 학습</button>
+          <button data-value="embedding">04 임베딩</button>
+          <button data-value="attention">05 어텐션</button>
+          <button data-value="transformer">06 Transformer</button>
+          <button data-value="llm">07 LLM</button>
+          <button data-value="generation">08 생성</button>
+          <button data-value="quantization">09 양자화</button>
+          <button data-value="rag">10 RAG</button>
+          <button data-value="design">11 서빙 설계</button>
+        </div>
+      </div>
+      <div class="row">
+        <span class="lbl">정렬</span>
+        <div class="seg" id="gl-sort"><button data-value="kor" class="on">가나다순</button><button data-value="ch">챕터순</button></div>
+        <span class="gl-count" id="gl-count"></span>
+      </div>
+    </div>
+    <div class="gl-list" id="gl-list" aria-live="polite"></div>
+  </section>
+
+  <section id="final-quiz">
+    <h2>종합 퀴즈</h2>
+    <p>전 챕터에서 고른 20문항이다. 한 문제씩 풀고 나면 해설과 관련 챕터 링크가 나온다. 끝까지 풀면 챕터별 정답률 그래프와 “등급”을 보여 준다. 다시 풀기를 누르면 문제와 보기 순서가 섞인다. 계산 문제는 종이에 직접 셈해 보고 고르자.</p>
+    <div class="fq" id="fq">
+      <div class="fq-top"><span id="fq-count">문제 1 / 20</span><span id="fq-score">정답 0</span></div>
+      <div class="fq-bar"><i id="fq-fill"></i></div>
+      <div class="fq-card" id="fq-card">
+        <div class="fq-ch" id="fq-ch"></div>
+        <p class="fq-q" id="fq-q"></p>
+        <div class="fq-opts" id="fq-opts"></div>
+        <div class="fq-exp" id="fq-exp" hidden aria-live="polite"></div>
+        <div class="fq-nav"><button class="btn primary" id="fq-next" hidden>다음 문제 →</button></div>
+      </div>
+      <div class="fq-result" id="fq-result" hidden>
+        <div class="fq-rank">YOUR RANK</div>
+        <div class="fq-title" id="fq-title"></div>
+        <div class="fq-big" id="fq-big"></div>
+        <p id="fq-msg" style="color:var(--text-dim)"></p>
+        <div class="fq-chart"><canvas id="cv-fq"></canvas></div>
+        <p class="fq-review" id="fq-review"></p>
+        <button class="btn primary" id="fq-retry">다시 풀기 (문제 섞기)</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="keypoints" id="summary">
+    <h2>마치며</h2>
+    <ol>
+      <li>LLM의 연산은 결국 <b>내적과 행렬곱</b>이다. 임베딩은 의미를 벡터의 방향으로, 어텐션은 내적 점수를 소프트맥스로 바꾼 가중 평균으로, FFN은 행렬곱과 비선형 함수로 이루어진다.</li>
+      <li>학습은 교차 엔트로피 손실을 역전파와 Adam으로 낮추는 과정이고, 규모는 스케일링 법칙(C ≈ 6ND, Chinchilla 약 20 토큰/파라미터)이 안내한다. 생성은 로짓을 샘플링해 한 토큰씩 이어 붙이며, KV 캐시가 이를 빠르게 만든다.</li>
+      <li>실제 서비스는 메모리가 지배한다. 양자화(BF16 → FP8/INT4)는 가중치·KV 캐시를 줄이고, RAG는 모델 밖의 지식을 프롬프트로 가져오며, 루프라인 분석은 병목이 연산인지 대역폭인지 알려 준다. 틀린 문제가 있던 챕터로 돌아가 시뮬레이터를 다시 만져 보자.</li>
+    </ol>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  /* =============================================================== 용어 데이터 */
+  var TERMS = [
+    // 01 벡터와 행렬
+    { ko: "벡터", en: "Vector", abbr: "", def: "수의 순서 있는 배열로, 공간의 한 점 또는 방향을 나타낸다. AI에서는 토큰·문장·이미지가 모두 고차원 벡터가 된다(GPT-2 small 768차원, Llama 3 8B 4,096차원).", ch: "vector" },
+    { ko: "내적", en: "Dot product", abbr: "", def: "a·b = Σ aᵢbᵢ = ‖a‖‖b‖cos θ. 두 벡터가 같은 방향일수록 크다. 뉴런의 가중합, 어텐션 점수 QKᵀ가 모두 내적이다.", ch: "vector" },
+    { ko: "코사인 유사도", en: "Cosine similarity", abbr: "cos", def: "a·b / (‖a‖‖b‖)로 −1~1 범위. 크기를 무시하고 방향만 비교하므로 임베딩 검색의 표준 척도다. 정규화된 벡터에서는 내적과 같다.", ch: "vector" },
+    { ko: "노름", en: "Norm", abbr: "‖x‖", def: "벡터의 길이. L2 노름은 √Σxᵢ², L1 노름은 Σ|xᵢ|이다. 정규화(LayerNorm·RMSNorm), 가중치 감쇠, 기울기 클리핑에서 쓰인다.", ch: "vector" },
+    { ko: "행렬", en: "Matrix", abbr: "", def: "수의 2차원 배열이자 선형 변환. m×n 행렬은 n차원 벡터를 m차원 벡터로 보낸다. 신경망 한 층의 가중치가 곧 행렬이다.", ch: "vector" },
+    { ko: "행렬곱", en: "General matrix multiply", abbr: "GEMM", def: "(m×k)·(k×n) → m×n. 곱셈과 덧셈을 합쳐 약 2mkn FLOP이 든다. Transformer 연산량의 대부분이 GEMM이며 GPU 텐서 코어가 이를 가속한다.", ch: "vector" },
+    { ko: "선형 변환", en: "Linear transformation", abbr: "", def: "f(ax + by) = a f(x) + b f(y)를 만족하는 사상. 회전·확대·전단·투영이 모두 행렬 곱으로 표현되고, 합성은 행렬 곱이 된다.", ch: "vector" },
+    { ko: "고유값·고유벡터", en: "Eigenvalue / eigenvector", abbr: "λ", def: "Av = λv를 만족하는 방향 v와 배율 λ. 변환해도 방향이 바뀌지 않는 축이다. 공분산 행렬의 고유벡터가 PCA의 주성분이다.", ch: "vector" },
+    { ko: "특이값 분해", en: "Singular value decomposition", abbr: "SVD", def: "임의의 행렬을 A = UΣVᵀ(회전·확대·회전)로 분해한다. 큰 특이값 k개만 남기면 최적의 랭크-k 근사가 되며, LoRA·압축의 직관적 근거다.", ch: "vector" },
+    { ko: "고차원 직교성", en: "Near-orthogonality in high dimensions", abbr: "", def: "고차원에서 무작위 벡터 두 개는 거의 직교한다. d차원 무작위 단위 벡터의 코사인 표준편차는 약 1/√d로, d = 4,096이면 약 0.016이다.", ch: "vector" },
+
+    // 02 뉴런과 신경망
+    { ko: "퍼셉트론", en: "Perceptron", abbr: "", def: "1958년 로젠블랫이 제안한 가중합 + 계단 함수 분류기. 선형 분리 가능한 문제만 풀 수 있어 XOR를 풀지 못한다.", ch: "neuron" },
+    { ko: "인공 뉴런", en: "Artificial neuron", abbr: "", def: "입력의 가중합에 편향을 더하고 활성화 함수를 통과시키는 단위: y = φ(w·x + b). 결정 경계는 초평면 w·x + b = 0이다.", ch: "neuron" },
+    { ko: "가중치", en: "Weight", abbr: "W", def: "입력마다 곱해지는 학습 가능한 계수. 모델의 '파라미터 수'는 대부분 가중치 행렬의 원소 수다(Llama 3 8B 약 8.03B개).", ch: "neuron" },
+    { ko: "활성화 함수", en: "Activation function", abbr: "φ", def: "뉴런 출력에 적용하는 비선형 함수. 이것이 없으면 층을 아무리 쌓아도 전체가 하나의 선형 변환(행렬 하나)과 같아진다.", ch: "neuron" },
+    { ko: "ReLU", en: "Rectified linear unit", abbr: "ReLU", def: "max(0, x). 양수 구간 기울기가 1이라 기울기 소실이 적고 계산이 싸다. 2012년 AlexNet 이후 표준 활성화가 됐다.", ch: "neuron" },
+    { ko: "시그모이드", en: "Sigmoid", abbr: "σ", def: "1/(1 + e⁻ˣ)로 출력이 0~1. 도함수 최댓값이 0.25라 깊게 쌓으면 기울기가 곱해져 사라진다. 지금은 게이트·이진 확률 출력에 주로 쓴다.", ch: "neuron" },
+    { ko: "GELU", en: "Gaussian error linear unit", abbr: "GELU", def: "x·Φ(x)(Φ는 표준정규 누적분포). 0 근처에서 ReLU보다 매끄럽다. BERT와 GPT-2의 FFN 활성화다.", ch: "neuron" },
+    { ko: "SwiGLU", en: "Swish-gated linear unit", abbr: "SwiGLU", def: "Swish(xW₁) ⊙ (xW₃)를 W₂로 내리는 게이트형 FFN. 행렬이 3개라 원 제안은 은닉 폭을 약 8/3·d로 줄여 파라미터를 맞춘다(Llama 3 8B는 14,336 = 3.5d). Llama 계열이 사용한다.", ch: "neuron" },
+    { ko: "다층 퍼셉트론", en: "Multilayer perceptron", abbr: "MLP", def: "입력층·은닉층·출력층이 완전 연결된 신경망. 활성화가 공간을 접고 휘어 선형 분리되지 않는 데이터(XOR, 나선)도 가를 수 있다.", ch: "neuron" },
+    { ko: "보편 근사 정리", en: "Universal approximation theorem", abbr: "", def: "은닉층 하나에 뉴런이 충분히 많으면 유계 구간의 임의의 연속 함수를 원하는 정확도로 근사할 수 있다는 정리. 필요한 뉴런 수나 학습 가능성은 말해 주지 않는다.", ch: "neuron" },
+    { ko: "소프트맥스", en: "Softmax", abbr: "", def: "pᵢ = exp(zᵢ)/Σⱼ exp(zⱼ). 실수 벡터를 합 1인 확률 분포로 바꾼다. 모든 zᵢ에 같은 상수를 더해도 결과가 같아 최댓값을 빼고 계산한다.", ch: "neuron" },
+
+    // 03 학습
+    { ko: "손실 함수", en: "Loss function", abbr: "L", def: "모델 예측이 정답과 얼마나 다른지 나타내는 스칼라. 학습은 이 값을 파라미터에 대해 최소화하는 최적화 문제다(회귀는 MSE, 분류·언어 모델은 교차 엔트로피).", ch: "training" },
+    { ko: "교차 엔트로피", en: "Cross-entropy", abbr: "CE", def: "−Σ y log p. 언어 모델에서는 정답 토큰의 −log p다. 어휘 50,257개를 균등하게 찍으면 ln 50,257 ≈ 10.8 nat이 초기 손실의 기준선이다.", ch: "training" },
+    { ko: "경사하강법", en: "Gradient descent", abbr: "GD", def: "θ ← θ − η∇L. 손실이 가장 빠르게 줄어드는 방향(기울기의 반대)으로 조금씩 이동한다.", ch: "training" },
+    { ko: "학습률", en: "Learning rate", abbr: "η", def: "한 스텝에 이동하는 크기. 너무 크면 발산하고 너무 작으면 느리다. LLM 사전학습은 보통 1e-4~3e-4 근처의 최대값에 워밍업과 코사인 감쇠를 쓴다.", ch: "training" },
+    { ko: "역전파", en: "Backpropagation", abbr: "", def: "연쇄법칙으로 출력 쪽 기울기를 입력 쪽으로 거꾸로 전파해 모든 파라미터의 기울기를 한 번에 구하는 방법. 역방향 연산은 순방향의 약 2배라 학습 전체가 약 6N FLOP/토큰이 된다.", ch: "training" },
+    { ko: "확률적 경사하강", en: "Stochastic gradient descent", abbr: "SGD", def: "전체 데이터 대신 무작위 미니배치로 기울기를 추정해 갱신한다. 잡음이 섞이지만 훨씬 싸고, 얕은 지역 최솟값을 빠져나오는 데 도움이 되기도 한다.", ch: "training" },
+    { ko: "모멘텀", en: "Momentum", abbr: "β", def: "과거 기울기의 지수 이동 평균(보통 β = 0.9)으로 움직여 좁은 골짜기에서의 진동을 줄이고 일관된 방향으로 가속한다.", ch: "training" },
+    { ko: "Adam", en: "Adaptive moment estimation", abbr: "Adam", def: "기울기의 1차 모멘트(m)와 2차 모멘트(v)를 추적해 파라미터마다 학습률을 조절한다(β₁ = 0.9, β₂ = 0.999 기본). 파라미터당 상태 2개(FP32면 8바이트)가 추가로 든다.", ch: "training" },
+    { ko: "AdamW", en: "Adam with decoupled weight decay", abbr: "AdamW", def: "가중치 감쇠를 기울기에 섞지 않고 파라미터에 직접 적용(θ ← θ − ηλθ)한 Adam 변형. 현재 LLM 학습의 기본 옵티마이저다(λ ≈ 0.1).", ch: "training" },
+    { ko: "과적합", en: "Overfitting", abbr: "", def: "학습 데이터에는 잘 맞지만 처음 보는 데이터에서 성능이 떨어지는 현상. 학습 손실은 내려가는데 검증 손실이 오르기 시작하면 신호다.", ch: "training" },
+    { ko: "기울기 소실", en: "Vanishing gradient", abbr: "", def: "역전파에서 1보다 작은 도함수가 층마다 곱해져 앞쪽 층 기울기가 0에 가까워지는 현상. ReLU, 잔차 연결, 정규화가 해결책이다. 반대로 커지면 기울기 폭주다.", ch: "training" },
+
+    // 04 토큰과 임베딩
+    { ko: "토큰", en: "Token", abbr: "", def: "언어 모델이 다루는 텍스트의 최소 단위(단어, 서브워드, 바이트 조각). 영어는 대략 1토큰 ≈ 4글자 ≈ 0.75단어, 한국어는 토크나이저에 따라 1글자에 1토큰 안팎이다.", ch: "embedding" },
+    { ko: "토큰화", en: "Tokenization", abbr: "", def: "문자열을 토큰 ID 정수열로 바꾸는 과정. 같은 문장도 토크나이저마다 토큰 수가 달라 비용·컨텍스트 계산에 직접 영향을 준다.", ch: "embedding" },
+    { ko: "바이트 쌍 인코딩", en: "Byte pair encoding", abbr: "BPE", def: "가장 자주 붙어 나오는 기호 쌍을 반복해 병합하며 어휘를 만드는 토큰화. GPT-2는 바이트 256개 + 병합 50,000개 + 특수 토큰 1개로 어휘 50,257개다.", ch: "embedding" },
+    { ko: "어휘", en: "Vocabulary", abbr: "V", def: "토크나이저가 아는 토큰 전체 집합. GPT-2 50,257, BERT 30,522, Llama 3 128,256. 어휘가 크면 같은 문장이 더 적은 토큰이 되지만 임베딩 행렬이 커진다.", ch: "embedding" },
+    { ko: "서브워드", en: "Subword", abbr: "", def: "단어보다 작은 조각 단위. 자주 쓰는 단어는 한 토큰, 드문 단어는 여러 조각으로 나뉘어 어휘 밖(OOV) 단어 문제를 없앤다.", ch: "embedding" },
+    { ko: "원-핫 인코딩", en: "One-hot encoding", abbr: "", def: "어휘 크기 V차원 벡터에서 해당 토큰 위치만 1인 표현. 모든 단어 쌍이 직교라 유사도를 담지 못하고, V가 크면 매우 희소하다.", ch: "embedding" },
+    { ko: "임베딩", en: "Embedding", abbr: "", def: "토큰·문장 등을 의미가 비슷하면 가까운 밀집 실수 벡터로 표현한 것. 원-핫 벡터에 임베딩 행렬을 곱하는 것은 행 하나를 꺼내는 조회와 같다.", ch: "embedding" },
+    { ko: "임베딩 행렬", en: "Embedding matrix", abbr: "E", def: "V × d 크기의 학습 가능한 표. Llama 3 8B는 128,256 × 4,096 ≈ 5.25억 파라미터로, 출력층(언임베딩)도 같은 크기다.", ch: "embedding" },
+    { ko: "가중치 공유", en: "Weight tying", abbr: "", def: "입력 임베딩 행렬과 출력 언임베딩 행렬을 같은 파라미터로 쓰는 기법. GPT-2가 사용하며 50,257 × 768 ≈ 3,860만 파라미터를 아낀다.", ch: "embedding" },
+    { ko: "Word2Vec", en: "Word2Vec", abbr: "", def: "2013년 Mikolov 등이 제안한 단어 임베딩 학습법(skip-gram, CBOW). king − man + woman ≈ queen 같은 벡터 산술로 유명하다.", ch: "embedding" },
+    { ko: "분포 가설", en: "Distributional hypothesis", abbr: "", def: "비슷한 문맥에 나타나는 단어는 비슷한 의미를 가진다는 가설. 임베딩 학습의 이론적 출발점이다.", ch: "embedding" },
+    { ko: "특수 토큰", en: "Special token", abbr: "BOS/EOS", def: "문장 시작·끝, 패딩, 대화 역할 구분 등을 나타내는 예약 토큰. GPT-2의 <|endoftext|>(ID 50256), Llama 3의 <|begin_of_text|> 등이 있다.", ch: "embedding" },
+
+    // 05 어텐션
+    { ko: "어텐션", en: "Attention", abbr: "", def: "각 위치가 다른 위치들을 얼마나 참고할지 가중치를 계산해 값 벡터를 가중 평균하는 연산. 문맥에 따라 같은 토큰의 표현이 달라지게 만든다.", ch: "attention" },
+    { ko: "셀프 어텐션", en: "Self-attention", abbr: "", def: "같은 시퀀스 안에서 Q, K, V를 모두 만드는 어텐션. 길이 n이면 n × n 점수 행렬이 생겨 연산·메모리가 O(n²)으로 늘어난다.", ch: "attention" },
+    { ko: "쿼리·키·값", en: "Query / Key / Value", abbr: "Q·K·V", def: "입력 x에 서로 다른 행렬 W_Q, W_K, W_V를 곱해 만든 세 벡터. 쿼리는 '찾는 것', 키는 '내가 가진 것의 색인', 값은 '전달할 내용'이다.", ch: "attention" },
+    { ko: "스케일드 닷프로덕트 어텐션", en: "Scaled dot-product attention", abbr: "SDPA", def: "softmax(QKᵀ/√d_k)V. 무작위 벡터 내적의 분산이 d_k에 비례하므로 √d_k로 나눠 소프트맥스가 한 곳으로 포화되는 것을 막는다.", ch: "attention" },
+    { ko: "어텐션 가중치", en: "Attention weights", abbr: "", def: "점수에 소프트맥스를 취해 각 행의 합이 1이 된 n × n 행렬. 쿼리 토큰이 어느 키 토큰을 얼마나 보는지 보여 준다.", ch: "attention" },
+    { ko: "인과 마스크", en: "Causal mask", abbr: "", def: "디코더가 미래 토큰을 보지 못하게 점수 행렬의 위 삼각 부분을 −∞로 채우는 마스크. 소프트맥스 후 그 자리의 가중치는 0이 된다.", ch: "attention" },
+    { ko: "멀티헤드 어텐션", en: "Multi-head attention", abbr: "MHA", def: "d를 h개 헤드로 나눠 각자 다른 관계를 보게 한 뒤 이어 붙여 W_O로 섞는다. GPT-2 small은 12헤드 × 64차원 = 768이다.", ch: "attention" },
+    { ko: "헤드 차원", en: "Head dimension", abbr: "d_head", def: "어텐션 헤드 하나의 Q·K·V 차원. GPT-2는 64, Llama 3 8B는 4,096/32 = 128이다.", ch: "attention" },
+    { ko: "그룹 쿼리 어텐션", en: "Grouped-query attention", abbr: "GQA", def: "여러 쿼리 헤드가 K·V 헤드 하나를 공유한다. Llama 3 8B는 쿼리 32헤드, KV 8헤드라 KV 캐시가 MHA 대비 1/4이다.", ch: "attention" },
+    { ko: "멀티 쿼리 어텐션", en: "Multi-query attention", abbr: "MQA", def: "모든 쿼리 헤드가 K·V 헤드 1개를 공유하는 극단적 형태. KV 캐시가 헤드 수만큼 줄지만 품질 손실이 GQA보다 크다.", ch: "attention" },
+    { ko: "크로스 어텐션", en: "Cross-attention", abbr: "", def: "쿼리는 한 시퀀스(디코더)에서, 키·값은 다른 시퀀스(인코더 출력, 이미지 등)에서 가져오는 어텐션. 번역 모델·멀티모달 모델에 쓰인다.", ch: "attention" },
+    { ko: "FlashAttention", en: "FlashAttention", abbr: "", def: "Q·K·V를 타일로 나눠 SRAM 안에서 소프트맥스를 온라인으로 계산해 n × n 행렬을 HBM에 쓰지 않는 정확한 어텐션 구현. 메모리 O(n), HBM 접근이 크게 준다.", ch: "attention" },
+
+    // 06 Transformer 블록
+    { ko: "트랜스포머", en: "Transformer", abbr: "", def: "2017년 논문 'Attention Is All You Need'가 제안한 구조. 어텐션 + FFN 블록을 잔차 연결로 쌓으며, 순환 없이 모든 위치를 병렬로 계산한다.", ch: "transformer" },
+    { ko: "위치 인코딩", en: "Positional encoding", abbr: "PE", def: "어텐션은 순서를 모르므로 위치 정보를 더해 준다. 원 논문은 사인·코사인 고정 함수, GPT-2는 학습된 위치 임베딩(1,024개)을 썼다.", ch: "transformer" },
+    { ko: "회전 위치 임베딩", en: "Rotary positional embedding", abbr: "RoPE", def: "Q·K의 차원 쌍을 위치에 비례한 각도로 회전시켜, 내적이 상대 위치에만 의존하게 만든다. Llama 3은 기저 θ = 500,000을 쓴다.", ch: "transformer" },
+    { ko: "잔차 연결", en: "Residual connection", abbr: "", def: "x + F(x)처럼 입력을 출력에 더하는 지름길. 기울기가 층을 건너 흐를 수 있어 수십~백여 층을 쌓아도 학습이 된다.", ch: "transformer" },
+    { ko: "레이어 정규화", en: "Layer normalization", abbr: "LayerNorm", def: "토큰 벡터 하나의 원소들을 평균 0, 분산 1로 맞춘 뒤 학습된 γ, β로 스케일·이동한다. 배치 크기와 무관해 Transformer에 적합하다.", ch: "transformer" },
+    { ko: "RMSNorm", en: "Root mean square normalization", abbr: "RMSNorm", def: "평균을 빼지 않고 x/√(mean(x²) + ε)·γ로 크기만 정규화하는 LayerNorm 변형. 계산이 싸고 성능이 비슷해 Llama 계열이 쓴다.", ch: "transformer" },
+    { ko: "Pre-LN", en: "Pre-layer normalization", abbr: "", def: "x + F(Norm(x))처럼 서브층 앞에서 정규화하는 배치. 원 논문의 Post-LN보다 깊은 모델에서 학습이 안정적이라 GPT-2 이후 표준이 됐다.", ch: "transformer" },
+    { ko: "피드포워드 네트워크", en: "Feed-forward network", abbr: "FFN", def: "토큰마다 독립으로 적용하는 2층(또는 게이트형 3행렬) MLP. GPT-2는 768 → 3,072 → 768, Llama 3 8B는 SwiGLU로 4,096 → 14,336 → 4,096이다. 파라미터의 약 2/3를 차지한다.", ch: "transformer" },
+    { ko: "전문가 혼합", en: "Mixture of Experts", abbr: "MoE", def: "FFN을 여러 전문가로 나누고 토큰마다 일부만 실행한다. Mixtral 8x7B는 전문가 8개 중 2개를 골라 총 약 46.7B 중 토큰당 약 12.9B만 활성화한다.", ch: "transformer" },
+    { ko: "라우터", en: "Router (gating network)", abbr: "", def: "MoE에서 토큰마다 전문가 점수를 계산해 top-k를 고르는 작은 선형층. 특정 전문가에 몰리지 않도록 부하 균형 손실을 함께 쓴다.", ch: "transformer" },
+    { ko: "층당 파라미터 12d²", en: "Per-layer parameter count", abbr: "", def: "MHA(Q·K·V·O 4d²) + 4배 FFN(8d²) ≈ 12d². GPT-2 small은 12 × 768² ≈ 708만/층 × 12층 + 임베딩 약 3,900만 ≈ 1.24억이다.", ch: "transformer" },
+
+    // 07 대규모 언어 모델
+    { ko: "대규모 언어 모델", en: "Large language model", abbr: "LLM", def: "방대한 텍스트로 다음 토큰 예측을 학습한 수십억~수천억 파라미터의 Transformer. 사전학습 후 지시 따르기·선호 정렬을 거쳐 챗봇이 된다.", ch: "llm" },
+    { ko: "사전학습", en: "Pretraining", abbr: "", def: "웹·책·코드 등 대규모 말뭉치로 다음 토큰 예측을 학습하는 단계. Llama 3는 약 15조(15T) 토큰으로 학습했다. 연산 비용의 대부분이 여기서 든다.", ch: "llm" },
+    { ko: "스케일링 법칙", en: "Scaling laws", abbr: "", def: "손실이 파라미터 수 N, 데이터 D, 연산 C에 대해 거듭제곱 법칙으로 매끄럽게 줄어든다는 경험 법칙(Kaplan 2020, Hoffmann 2022).", ch: "llm" },
+    { ko: "친칠라 최적", en: "Chinchilla-optimal", abbr: "", def: "고정 연산 예산에서 손실을 최소화하려면 파라미터 1개당 약 20토큰을 학습하라는 결과(2022). 70B 모델이면 약 1.4T 토큰이다. 추론 비용 때문에 실제로는 더 많이 학습하기도 한다.", ch: "llm" },
+    { ko: "학습 연산량", en: "Training compute", abbr: "C ≈ 6ND", def: "Dense Transformer 학습 FLOP ≈ 6 × 파라미터 × 토큰(순방향 2 + 역방향 4). Llama 3 8B를 15T 토큰 학습하면 약 7.2 × 10²³ FLOP이다.", ch: "llm" },
+    { ko: "퍼플렉서티", en: "Perplexity", abbr: "PPL", def: "exp(평균 교차 엔트로피). 모델이 매 토큰에서 평균 몇 개 후보 사이에서 헷갈리는지로 해석한다. 낮을수록 좋고, 같은 토크나이저끼리만 비교할 수 있다.", ch: "llm" },
+    { ko: "지도 미세조정", en: "Supervised fine-tuning", abbr: "SFT", def: "사람이 쓴 (지시, 응답) 쌍으로 사전학습 모델을 추가 학습해 지시를 따르는 대화 형식을 익히게 하는 단계.", ch: "llm" },
+    { ko: "인간 피드백 강화학습", en: "Reinforcement learning from human feedback", abbr: "RLHF", def: "사람의 선호 비교로 보상 모델을 학습하고, PPO 등으로 그 보상을 높이도록 정책(LLM)을 최적화한다. KL 페널티로 원래 모델에서 너무 멀어지지 않게 한다.", ch: "llm" },
+    { ko: "컨텍스트 윈도우", en: "Context window", abbr: "", def: "모델이 한 번에 볼 수 있는 최대 토큰 수. GPT-2 1,024, Llama 3 8,192, Llama 3.1 128K. 길수록 KV 캐시와 어텐션 비용이 커진다.", ch: "llm" },
+    { ko: "인컨텍스트 학습", en: "In-context learning", abbr: "ICL", def: "가중치를 바꾸지 않고 프롬프트에 예시 몇 개(few-shot)를 넣는 것만으로 새 작업을 수행하는 능력. GPT-3(175B)에서 크게 주목받았다.", ch: "llm" },
+    { ko: "LoRA", en: "Low-rank adaptation", abbr: "LoRA", def: "가중치 W는 얼리고 ΔW = BA(랭크 r = 8~64 정도)만 학습하는 미세조정. d = 4,096, r = 16이면 행렬당 학습 파라미터가 1,678만에서 13만으로 준다.", ch: "llm" },
+
+    // 08 토큰 생성과 디코딩
+    { ko: "로짓", en: "Logit", abbr: "z", def: "소프트맥스 이전의 정규화되지 않은 점수. 마지막 은닉 벡터에 언임베딩 행렬을 곱해 어휘 크기(V)만큼 얻는다.", ch: "generation" },
+    { ko: "온도", en: "Temperature", abbr: "T", def: "softmax(z/T). T < 1이면 분포가 뾰족해져 보수적, T > 1이면 평평해져 다양하다. T → 0이면 argmax(그리디)와 같다.", ch: "generation" },
+    { ko: "그리디 디코딩", en: "Greedy decoding", abbr: "", def: "매 단계 확률이 가장 높은 토큰을 고르는 결정적 방법. 빠르고 재현 가능하지만 반복 루프에 빠지기 쉽다.", ch: "generation" },
+    { ko: "Top-k 샘플링", en: "Top-k sampling", abbr: "", def: "확률 상위 k개만 남기고 다시 정규화해 샘플링한다. k가 고정이라 분포가 뾰족할 때와 평평할 때 모두 같은 개수를 남기는 한계가 있다.", ch: "generation" },
+    { ko: "Top-p 샘플링", en: "Nucleus (top-p) sampling", abbr: "", def: "누적 확률이 p(예: 0.9)를 넘을 때까지의 최소 토큰 집합에서 샘플링한다. 분포 모양에 따라 후보 수가 자동으로 바뀐다.", ch: "generation" },
+    { ko: "빔 서치", en: "Beam search", abbr: "", def: "매 단계 누적 로그확률 상위 B개 부분 문장을 유지하며 확장한다. 번역·요약처럼 정답이 비교적 하나인 작업에 쓰고, 열린 대화에는 잘 쓰지 않는다.", ch: "generation" },
+    { ko: "KV 캐시", en: "Key-value cache", abbr: "KV", def: "이전 토큰의 K·V를 저장해 재계산을 피한다. 토큰당 크기 = 2 × 층 × KV헤드 × d_head × 바이트. Llama 3 8B BF16은 2×32×8×128×2 B = 128 KiB/토큰, 8K 토큰이면 1 GiB다.", ch: "generation" },
+    { ko: "프리필", en: "Prefill", abbr: "", def: "프롬프트 전체를 한 번에 병렬 처리해 KV 캐시를 채우는 단계. 큰 행렬곱이라 연산 바운드이며 첫 토큰 지연(TTFT)을 결정한다.", ch: "generation" },
+    { ko: "디코드", en: "Decode", abbr: "", def: "토큰을 하나씩 생성하는 단계. 토큰마다 전체 가중치와 KV 캐시를 읽어야 해 작은 배치에서는 메모리 대역폭 바운드다.", ch: "generation" },
+    { ko: "첫 토큰 지연", en: "Time to first token", abbr: "TTFT", def: "요청부터 첫 출력 토큰까지의 시간. 프롬프트 길이(프리필)와 대기열이 좌우한다. 이후 토큰 간격은 TPOT(time per output token)로 잰다.", ch: "generation" },
+    { ko: "추측 디코딩", en: "Speculative decoding", abbr: "", def: "작은 초안 모델이 토큰 여러 개를 먼저 제안하고, 큰 모델이 한 번의 순전파로 검증·수락한다. 거절 샘플링으로 출력 분포를 원래 모델과 똑같이 유지한다.", ch: "generation" },
+
+    // 09 양자화
+    { ko: "양자화", en: "Quantization", abbr: "", def: "가중치·활성값을 더 적은 비트로 표현해 메모리와 대역폭을 줄이는 기법. 8B 모델은 BF16 약 16 GB, INT4 약 4~5 GB가 된다.", ch: "quantization" },
+    { ko: "FP32", en: "Single-precision float", abbr: "FP32", def: "부호 1 + 지수 8 + 가수 23비트. 최대 약 3.4 × 10³⁸, 상대 정밀도 약 1.2 × 10⁻⁷. 학습의 마스터 가중치·옵티마이저 상태에 쓴다.", ch: "quantization" },
+    { ko: "FP16", en: "Half-precision float", abbr: "FP16", def: "부호 1 + 지수 5 + 가수 10비트. 최대 65,504라 큰 값이 넘치기 쉬워 학습 시 손실 스케일링이 필요하다.", ch: "quantization" },
+    { ko: "BF16", en: "Brain floating point 16", abbr: "BF16", def: "부호 1 + 지수 8 + 가수 7비트. FP32와 지수 범위가 같아 오버플로 걱정이 적고, 정밀도는 약 3자리다. LLM 학습·추론의 기본 형식이다.", ch: "quantization" },
+    { ko: "FP8", en: "8-bit floating point", abbr: "E4M3/E5M2", def: "E4M3(지수 4, 가수 3)은 최대 448로 정밀도 위주, E5M2(지수 5, 가수 2)는 최대 57,344로 범위 위주다. H100부터 텐서 코어가 지원한다.", ch: "quantization" },
+    { ko: "INT8·INT4", en: "8-bit / 4-bit integer", abbr: "", def: "정수 양자화 형식. 부호 있는 INT8은 −128~127, INT4는 −8~7의 16단계뿐이라 스케일 선택이 품질을 좌우한다.", ch: "quantization" },
+    { ko: "스케일과 영점", en: "Scale and zero-point", abbr: "s, z", def: "q = round(x/s) + z, x̂ = s(q − z). 대칭 양자화는 z = 0, s = max|x|/(2^(b−1) − 1)이다. 비대칭은 z로 범위의 치우침을 흡수한다.", ch: "quantization" },
+    { ko: "그룹 양자화", en: "Group-wise quantization", abbr: "", def: "가중치를 g개(예: 128개)씩 묶어 그룹마다 스케일을 둔다. 4비트 + FP16 스케일/128 = 실효 약 4.125비트로, 채널 전체 스케일보다 오차가 훨씬 작다.", ch: "quantization" },
+    { ko: "이상치", en: "Outlier", abbr: "", def: "일부 활성 채널에 다른 값보다 수십~수백 배 큰 값이 몰리는 현상(약 6.7B 이상 모델에서 두드러짐, LLM.int8() 2022). 이 값이 스케일을 키워 나머지 값의 해상도를 망친다.", ch: "quantization" },
+    { ko: "GPTQ", en: "GPTQ", abbr: "", def: "레이어별로 입력 통계로 만든 헤시안(2차 정보)을 이용해, 한 열을 양자화할 때 생긴 오차를 아직 양자화하지 않은 열에 보정하며 진행하는 사후 양자화(2022).", ch: "quantization" },
+    { ko: "AWQ", en: "Activation-aware weight quantization", abbr: "AWQ", def: "활성값이 큰 소수(약 1%)의 중요 채널을 찾아 가중치를 미리 키워(스케일) 양자화 오차를 줄이는 4비트 가중치 양자화(2023).", ch: "quantization" },
+    { ko: "사후 양자화·양자화 인식 학습", en: "PTQ / QAT", abbr: "PTQ/QAT", def: "PTQ는 학습이 끝난 모델을 소량의 보정 데이터로 바로 양자화하고, QAT는 학습 중 양자화를 흉내 내(가짜 양자화) 모델이 오차에 적응하게 한다.", ch: "quantization" },
+
+    // 10 RAG
+    { ko: "검색 증강 생성", en: "Retrieval-augmented generation", abbr: "RAG", def: "질문과 관련된 문서를 먼저 검색해 프롬프트에 넣고 생성하는 방식(Lewis 등 2020). 지식 컷오프·사내 문서·출처 제시 문제를 가중치 수정 없이 해결한다.", ch: "rag" },
+    { ko: "환각", en: "Hallucination", abbr: "", def: "모델이 그럴듯하지만 사실이 아니거나 근거 없는 내용을 만들어 내는 현상. RAG는 근거 문서를 제공하고 출처를 인용하게 해 이를 줄인다.", ch: "rag" },
+    { ko: "청킹", en: "Chunking", abbr: "", def: "문서를 검색 단위 조각으로 나누는 것. 고정 길이, 문장·문단 단위, 재귀 분할 등이 있으며 보통 수백 토큰 크기를 쓴다.", ch: "rag" },
+    { ko: "벡터 데이터베이스", en: "Vector database", abbr: "Vector DB", def: "임베딩 벡터와 원문·메타데이터를 저장하고 근사 최근접 탐색으로 빠르게 찾아 주는 저장소. 필터링·갱신·분산을 함께 제공한다.", ch: "rag" },
+    { ko: "근사 최근접 탐색", en: "Approximate nearest neighbor", abbr: "ANN", def: "정확한 최근접 이웃 대신 대부분 맞는 이웃을 훨씬 빨리 찾는 탐색. 전수 비교 O(N) 대신 그래프·클러스터 색인으로 recall과 속도를 맞바꾼다.", ch: "rag" },
+    { ko: "HNSW", en: "Hierarchical navigable small world", abbr: "HNSW", def: "여러 층의 근접 그래프를 쌓아 위층에서 크게, 아래층에서 촘촘히 탐욕 탐색하는 ANN 색인. 연결 수 M, 구축 폭 efConstruction, 탐색 폭 ef가 주요 파라미터다.", ch: "rag" },
+    { ko: "IVF", en: "Inverted file index", abbr: "IVF", def: "벡터를 k-means로 nlist개 군집에 나누고, 질의와 가까운 nprobe개 군집 안에서만 비교하는 ANN 색인. 곱 양자화(PQ)와 결합해 메모리를 줄이기도 한다.", ch: "rag" },
+    { ko: "BM25", en: "Okapi BM25", abbr: "BM25", def: "단어 빈도(포화 파라미터 k₁ ≈ 1.2~2.0), 문서 길이 정규화(b ≈ 0.75), IDF를 결합한 키워드 검색 점수. 고유명사·코드·숫자 검색에 강하다.", ch: "rag" },
+    { ko: "역순위 융합", en: "Reciprocal rank fusion", abbr: "RRF", def: "여러 검색 결과를 점수 대신 순위로 합친다: score(d) = Σ 1/(k + rankᵢ(d)), 보통 k = 60. 척도가 다른 BM25와 벡터 점수를 정규화 없이 결합할 수 있다.", ch: "rag" },
+    { ko: "리랭커", en: "Reranker (cross-encoder)", abbr: "", def: "질문과 문서를 한 입력으로 넣어 관련도를 직접 점수화하는 모델. 바이 인코더보다 정확하지만 느려서 1차 검색 상위 수십 개에만 적용한다.", ch: "rag" },
+    { ko: "최대 한계 관련성", en: "Maximal marginal relevance", abbr: "MMR", def: "λ·sim(q, d) − (1 − λ)·max sim(d, 이미 고른 것)이 최대인 문서를 차례로 고른다. 비슷한 청크의 중복을 줄이고 다양성을 높인다.", ch: "rag" },
+    { ko: "Recall@k", en: "Recall at k", abbr: "", def: "정답 문서(청크)가 상위 k개 안에 들어 있는 비율. RAG에서는 검색이 놓친 근거를 LLM이 복구할 수 없으므로 가장 먼저 보는 지표다.", ch: "rag" },
+    { ko: "평균 역순위", en: "Mean reciprocal rank", abbr: "MRR", def: "첫 정답의 순위 r에 대해 1/r을 질의마다 평균한 값. 1위면 1, 2위면 0.5, 못 찾으면 0이다.", ch: "rag" },
+
+    // 11 서빙 설계
+    { ko: "루프라인 모델", en: "Roofline model", abbr: "", def: "달성 성능 = min(피크 FLOPS, 메모리 대역폭 × 산술 강도). 커널이 지붕의 경사면(대역폭 바운드)에 있는지 평평한 면(연산 바운드)에 있는지 보여 준다.", ch: "design" },
+    { ko: "산술 강도", en: "Arithmetic intensity", abbr: "AI", def: "옮긴 바이트당 연산 수(FLOP/byte). H100 SXM의 균형점은 약 989 TFLOPS / 3.35 TB/s ≈ 295 FLOP/B로, 이보다 낮으면 대역폭 바운드다.", ch: "design" },
+    { ko: "메모리 대역폭 바운드", en: "Memory-bandwidth bound", abbr: "", def: "연산기보다 메모리 읽기가 느려 성능이 대역폭에 묶인 상태. 배치 1 디코드는 토큰마다 가중치 전체를 읽어 8B BF16(16 GB)을 3.35 TB/s로 읽으면 토큰당 약 4.8 ms, 최대 약 210 토큰/s다.", ch: "design" },
+    { ko: "HBM", en: "High Bandwidth Memory", abbr: "HBM", def: "DRAM 다이를 수직 적층해 GPU 옆에 붙인 고대역폭 메모리. H100 SXM은 HBM3 80 GB, 약 3.35 TB/s다.", ch: "design" },
+    { ko: "TFLOPS", en: "Tera floating-point operations per second", abbr: "TFLOPS", def: "초당 10¹² 부동소수점 연산. H100 SXM의 BF16 dense 텐서 코어 피크는 약 989 TFLOPS(희소성 사용 시 2배로 표기).", ch: "design" },
+    { ko: "모델 FLOPs 활용률", en: "Model FLOPs utilization", abbr: "MFU", def: "실제 모델 연산 FLOP/s ÷ 하드웨어 피크. 대규모 LLM 학습에서 약 35~55%면 양호한 편이다.", ch: "design" },
+    { ko: "가중치 메모리", en: "Weight memory", abbr: "", def: "파라미터 수 × 바이트. 8B BF16 ≈ 16 GB, 70B BF16 ≈ 140 GB(H100 80 GB 2장 이상), 70B INT4 ≈ 35~40 GB다.", ch: "design" },
+    { ko: "연속 배칭", en: "Continuous batching", abbr: "", def: "요청 단위가 아니라 디코드 스텝 단위로 배치를 갱신해, 끝난 요청 자리에 새 요청을 바로 넣는 스케줄링. GPU 유휴 시간을 줄여 처리량을 크게 높인다.", ch: "design" },
+    { ko: "PagedAttention", en: "PagedAttention", abbr: "", def: "KV 캐시를 고정 크기 블록(예: 16토큰)으로 나눠 OS 가상 메모리처럼 페이지 테이블로 관리하는 기법(vLLM, 2023). 단편화를 줄여 더 큰 배치를 담는다.", ch: "design" },
+    { ko: "텐서 병렬", en: "Tensor parallelism", abbr: "TP", def: "한 층의 행렬을 열·행 방향으로 나눠 여러 GPU가 동시에 계산하고 all-reduce로 합친다. 통신이 잦아 NVLink로 묶인 한 노드 안(예: 8 GPU)에서 주로 쓴다.", ch: "design" },
+    { ko: "처리량", en: "Throughput", abbr: "tok/s", def: "초당 생성 토큰 수(전체 요청 합). 배치를 키우면 가중치 읽기를 여러 요청이 나눠 써 처리량이 늘지만, 요청당 지연과 KV 캐시 메모리가 함께 늘어난다.", ch: "design" },
+  ];
+
+  /* =============================================================== 용어집 렌더 */
+  var CH = {}; AB.CHAPTERS.forEach(function (c) { CH[c.slug] = c; });
+  var ORDER = {}; AB.CHAPTERS.forEach(function (c, i) { ORDER[c.slug] = i; });
+  var CHO = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+  var MERGE = { "ㄲ": "ㄱ", "ㄸ": "ㄷ", "ㅃ": "ㅂ", "ㅆ": "ㅅ", "ㅉ": "ㅈ" };
+  function initial(s) {
+    var c = s.charCodeAt(0);
+    if (c >= 0xac00 && c <= 0xd7a3) { var j = CHO[Math.floor((c - 0xac00) / 588)]; return MERGE[j] || j; }
+    if (/[0-9]/.test(s[0])) return "0–9";
+    return "A–Z";
+  }
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+  function norm(s) { return String(s).toLowerCase().replace(/[\s\-·_/()]/g, ""); }
+  function hl(text, q) {
+    var t = esc(text);
+    if (!q) return t;
+    var i = text.toLowerCase().indexOf(q);
+    if (i < 0) return t;
+    return esc(text.slice(0, i)) + "<mark>" + esc(text.slice(i, i + q.length)) + "</mark>" + esc(text.slice(i + q.length));
+  }
+  function gOrd(g) { var i = CHO.indexOf(g); return i >= 0 ? i : g === "A–Z" ? 100 : 101; }
+  TERMS.forEach(function (t) { t._key = norm(t.ko + " " + t.en + " " + t.abbr); t._def = norm(t.def); t._ini = initial(t.ko); });
+
+  var qEl = document.getElementById("gl-q"), listEl = document.getElementById("gl-list"), countEl = document.getElementById("gl-count");
+  var chSel = AB.seg("gl-ch", renderGlossary), sortSel = AB.seg("gl-sort", renderGlossary);
+  qEl.addEventListener("input", renderGlossary);
+
+  function renderGlossary() {
+    var raw = qEl.value.trim(), q = norm(raw), qLow = raw.toLowerCase(), ch = chSel(), mode = sortSel();
+    var items = TERMS.filter(function (t) {
+      if (ch !== "all" && t.ch !== ch) return false;
+      if (!q) return true;
+      return t._key.indexOf(q) >= 0 || t._def.indexOf(q) >= 0;
+    });
+    // 제목 일치를 정의 일치보다 앞에
+    var rank = function (t) { return q && t._key.indexOf(q) < 0 ? 1 : 0; };
+    items.sort(function (a, b) {
+      if (mode === "ch") { var d = ORDER[a.ch] - ORDER[b.ch]; if (d) return d; }
+      var r = rank(a) - rank(b); if (r && mode !== "ch") return r;
+      if (mode !== "ch") { var g = gOrd(a._ini) - gOrd(b._ini); if (g) return g; }
+      return a.ko.localeCompare(b.ko, "ko");
+    });
+    countEl.textContent = items.length + " / " + TERMS.length + "개 용어";
+    if (!items.length) { listEl.innerHTML = '<div class="gl-empty">“' + esc(raw) + '”에 해당하는 용어가 없습니다. 영어나 약어로도 검색해 보세요.</div>'; return; }
+    var html = [], last = null;
+    items.forEach(function (t) {
+      var g = mode === "ch" ? t.ch : (q && rank(t) ? "본문 일치" : t._ini);
+      if (g !== last) {
+        last = g;
+        html.push('<div class="gl-group">' + (mode === "ch" ? "Ch." + CH[g].num + " · " + esc(CH[g].title) : esc(g)) + "</div>");
+      }
+      var c = CH[t.ch];
+      html.push('<div class="gl-item" id="term-' + TERMS.indexOf(t) + '"><h4>' + hl(t.ko, qLow) + '<span class="en">' + hl(t.en, qLow) + "</span>" +
+        (t.abbr ? '<span class="abbr">' + hl(t.abbr, qLow) + "</span>" : "") + "</h4><p>" + hl(t.def, qLow) + "</p>" +
+        '<a class="ch" href="../chapters/' + t.ch + '.html">→ Ch.' + c.num + " " + esc(c.title) + "</a></div>");
+    });
+    listEl.innerHTML = html.join("");
+  }
+  renderGlossary();
+
+  /* =============================================================== 종합 퀴즈 데이터 */
+  var QUIZ = [
+    { ch: "vector", q: "a = (3, 4), b = (4, 3)의 코사인 유사도는?", o: ["0.48", "0.75", "0.96", "1.0"], a: 2, e: "a·b = 12 + 12 = 24, ‖a‖ = ‖b‖ = 5 → 24/25 = 0.96. 방향이 거의 같다. 크기가 달라도 방향이 같으면 코사인은 1이다." },
+    { ch: "vector", q: "4,096차원에서 무작위로 뽑은 두 단위 벡터의 코사인 유사도는 대개 어느 정도인가?", o: ["거의 0 (표준편차 약 0.016)", "약 0.5", "약 −1 또는 +1", "차원과 무관하게 균등분포"], a: 0, e: "고차원 무작위 벡터는 거의 직교한다. 코사인의 표준편차는 약 1/√d = 1/64 ≈ 0.016. 그래서 고차원 임베딩 공간에는 서로 거의 간섭하지 않는 방향이 엄청나게 많다." },
+    { ch: "neuron", q: "은닉층을 10개 쌓은 신경망에서 활성화 함수를 모두 제거하면 어떻게 되는가?", o: ["표현력이 10배가 된다", "전체가 하나의 선형 변환(행렬 하나)과 같아진다", "학습이 불가능해진다", "XOR 문제만 풀 수 있다"], a: 1, e: "선형 변환의 합성은 선형 변환이다: W₁₀⋯W₂W₁x = Wx. 비선형 활성화가 있어야 공간을 접고 휘어 복잡한 결정 경계를 만들 수 있다." },
+    { ch: "training", q: "어휘 50,257개(GPT-2)인 언어 모델이 학습 초기에 모든 토큰을 균등 확률로 예측한다면 교차 엔트로피 손실은 약 얼마인가?", o: ["약 1.0", "약 4.7", "약 10.8", "약 50,257"], a: 2, e: "−ln(1/50257) = ln 50257 ≈ 10.8 nat. 학습 곡선이 10.8 근처에서 시작해 내려가는 것이 정상이며, 이보다 크게 시작하면 초기화에 문제가 있다는 신호다." },
+    { ch: "training", q: "BF16 혼합 정밀도 + Adam 학습에서 파라미터 하나당 필요한 메모리(가중치·기울기·옵티마이저 상태, 활성값 제외)는 대략?", o: ["2바이트", "4바이트", "8바이트", "16바이트"], a: 3, e: "BF16 가중치 2 + BF16 기울기 2 + FP32 마스터 가중치 4 + Adam m 4 + v 4 = 16바이트. 8B 모델이면 약 128 GB로, 추론(약 16 GB)의 8배다." },
+    { ch: "embedding", q: "Llama 3 8B(어휘 128,256, d = 4,096)의 입력 임베딩 행렬 파라미터 수는 대략?", o: ["약 5,000만", "약 2.1억", "약 5.25억", "약 52억"], a: 2, e: "128,256 × 4,096 ≈ 5.25억. Llama 3 8B는 입력 임베딩과 출력층을 공유하지 않으므로 같은 크기의 출력 행렬이 하나 더 있다(합 약 10.5억)." },
+    { ch: "embedding", q: "BPE 토크나이저의 어휘를 만드는 방법으로 옳은 것은?", o: ["사전에 있는 단어만 토큰으로 쓴다", "가장 자주 붙어 나오는 기호 쌍을 반복해서 하나로 병합한다", "모든 글자를 고정 길이 3글자씩 자른다", "임베딩이 비슷한 단어끼리 묶는다"], a: 1, e: "바이트(또는 글자)에서 시작해 말뭉치에서 가장 빈번한 인접 쌍을 새 토큰으로 병합하는 과정을 원하는 어휘 크기까지 반복한다. GPT-2는 병합 50,000회 + 바이트 256 + 특수 토큰 1 = 50,257이다." },
+    { ch: "attention", q: "어텐션 점수 QKᵀ를 √d_k로 나누는 가장 중요한 이유는?", o: ["계산을 빠르게 하려고", "내적의 분산이 d_k에 비례해 커져 소프트맥스가 한 토큰으로 포화되는 것을 막으려고", "음수 점수를 없애려고", "인과 마스크를 적용하려고"], a: 1, e: "원소가 평균 0·분산 1인 무작위 벡터의 내적은 분산이 d_k다. d_k = 128이면 표준편차가 약 11이라 소프트맥스가 거의 원-핫이 되고 기울기가 사라진다. √d_k로 나누면 분산이 1로 돌아온다." },
+    { ch: "attention", q: "Llama 3 8B는 쿼리 헤드 32개, KV 헤드 8개(GQA)를 쓴다. 같은 구조의 MHA(KV 헤드 32개)와 비교한 KV 캐시 크기는?", o: ["같다", "1/2", "1/4", "1/32"], a: 2, e: "KV 캐시는 KV 헤드 수에 비례하므로 8/32 = 1/4이다. 쿼리 헤드 4개가 K·V 한 쌍을 공유한다. 품질 손실은 작고 디코드 메모리 대역폭이 크게 준다." },
+    { ch: "transformer", q: "d = 768, FFN 4배, 표준 MHA인 Transformer 블록 하나의 파라미터 수(편향·정규화 제외)는 대략?", o: ["약 59만", "약 236만", "약 708만", "약 2,830만"], a: 2, e: "어텐션 Q·K·V·O 4d² + FFN 2 × d × 4d = 8d² → 12d² = 12 × 589,824 ≈ 708만. GPT-2 small은 이것이 12층 ≈ 8,500만 + 임베딩 약 3,900만 ≈ 1.24억이다." },
+    { ch: "transformer", q: "Mixtral 8x7B(전문가 8개 중 토큰당 2개 활성)가 '총 약 47B인데 연산은 13B급'인 이유는?", o: ["어텐션 층이 없어서", "토큰마다 라우터가 고른 2개 전문가 FFN만 실행하고, 어텐션 등은 공유하기 때문", "4비트로 양자화되어 있어서", "층 수가 1/4이라서"], a: 1, e: "MoE는 FFN만 전문가로 나눈다. 토큰당 2/8 전문가만 계산하므로 활성 파라미터는 약 12.9B다. 다만 모든 전문가 가중치를 메모리에 올려야 하므로 메모리는 47B급이 든다." },
+    { ch: "llm", q: "Chinchilla 스케일링 결과에 따르면 70B 파라미터 모델의 연산 최적 학습 토큰 수는 대략?", o: ["약 70B", "약 300B", "약 1.4T", "약 15T"], a: 2, e: "파라미터당 약 20토큰 → 70B × 20 = 1.4T. Chinchilla(70B, 1.4T)는 4배 큰 Gopher(280B, 300B 토큰)를 이겼다. Llama 3 8B의 15T는 추론 효율을 위해 최적보다 훨씬 오래 학습한 예다." },
+    { ch: "llm", q: "C ≈ 6ND 근사로 Llama 3 8B(N = 8 × 10⁹)를 15T 토큰 학습할 때의 연산량은?", o: ["약 1.2 × 10²³ FLOP", "약 7.2 × 10²³ FLOP", "약 7.2 × 10²⁶ FLOP", "약 4.8 × 10²⁰ FLOP"], a: 1, e: "6 × 8 × 10⁹ × 1.5 × 10¹³ = 7.2 × 10²³ FLOP. H100(BF16 약 989 TFLOPS)을 MFU 40%로 쓰면 약 1.8 × 10⁹ GPU·초 ≈ 51만 GPU·시간이다." },
+    { ch: "generation", q: "샘플링 온도 T를 0에 가깝게 낮추면 디코딩은 무엇과 같아지는가?", o: ["균등 무작위 샘플링", "그리디(argmax) 디코딩", "빔 서치", "top-p = 1 샘플링"], a: 1, e: "softmax(z/T)에서 T → 0이면 가장 큰 로짓의 확률이 1로 수렴한다. 반대로 T → ∞면 모든 토큰이 균등 확률이 된다." },
+    { ch: "generation", q: "Llama 3 8B(32층, KV 헤드 8, d_head 128)를 BF16 KV 캐시로 8,192토큰 처리할 때 요청 하나의 KV 캐시 크기는?", o: ["약 128 MiB", "약 1 GiB", "약 4 GiB", "약 32 GiB"], a: 1, e: "토큰당 2(K,V) × 32 × 8 × 128 × 2바이트 = 131,072 B = 128 KiB. × 8,192 = 1 GiB. 동시 요청 32개면 32 GiB로, 가중치(16 GB)보다 커진다." },
+    { ch: "quantization", q: "FP8 E4M3 형식이 표현할 수 있는 최댓값(유한값)은?", o: ["127", "448", "65,504", "57,344"], a: 1, e: "E4M3는 지수 4비트·가수 3비트이며 NaN 하나만 예약해 최대 448(= 1.75 × 2⁸)이다. 57,344는 E5M2, 65,504는 FP16의 최댓값이다." },
+    { ch: "quantization", q: "INT4 가중치를 128개 그룹마다 FP16 스케일 하나로 양자화하면 가중치당 실효 비트 수는?", o: ["4.0", "4.125", "4.5", "5.0"], a: 1, e: "4 + 16/128 = 4.125비트. 영점(zero-point)까지 그룹마다 저장하면 조금 더 늘어난다. 그룹이 작을수록 정확하지만 메타데이터 오버헤드가 커진다." },
+    { ch: "rag", q: "청킹에서 청크 사이에 오버랩을 두는 주된 이유는?", o: ["색인 크기를 줄이려고", "경계에서 문장·사실이 잘려 어느 청크에도 온전히 담기지 않는 문제를 줄이려고", "임베딩 차원을 늘리려고", "BM25를 쓸 수 없게 하려고"], a: 1, e: "고정 길이로 자르면 핵심 문장이 두 청크에 반씩 걸칠 수 있다. 오버랩은 경계 근처 내용을 양쪽에 중복 저장해 검색 누락을 줄이는 대신, 색인 크기와 중복 결과가 늘어난다." },
+    { ch: "rag", q: "하이브리드 검색에서 RRF(역순위 융합)를 쓰는 장점으로 가장 알맞은 것은?", o: ["BM25 점수와 코사인 점수를 같은 척도로 정규화할 필요 없이 순위만으로 결합한다", "벡터 DB 없이 검색할 수 있다", "LLM 생성 속도가 빨라진다", "정답 문서를 항상 1위로 만든다"], a: 0, e: "score(d) = Σ 1/(k + rank), 보통 k = 60. BM25는 0~수십, 코사인은 −1~1처럼 척도가 달라도 순위만 쓰므로 간단하고 견고하다. 두 목록 모두에서 상위인 문서가 위로 올라온다." },
+    { ch: "design", q: "배치 1 디코드에서 Llama 3 8B BF16(가중치 약 16 GB)을 H100 SXM(약 3.35 TB/s)으로 돌릴 때 토큰 생성 속도의 이론적 상한은?", o: ["약 21 토큰/s", "약 210 토큰/s", "약 2,100 토큰/s", "약 21,000 토큰/s"], a: 1, e: "토큰마다 가중치 전체를 읽어야 하므로 16 GB / 3.35 TB/s ≈ 4.8 ms → 약 210 토큰/s. 연산(약 16 GFLOP/토큰)은 피크의 1%도 쓰지 않는 전형적인 대역폭 바운드다. 배치를 키우거나 양자화하면 이 한계가 올라간다." },
+  ];
+
+  /* =============================================================== 퀴즈 로직 */
+  var fq = {
+    order: [], i: 0, score: 0, answered: false, results: [], cv: null,
+    el: function (id) { return document.getElementById(id); },
+  };
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function startQuiz(shuf) {
+    var idx = QUIZ.map(function (_, i) { return i; });
+    if (shuf) shuffle(idx);
+    fq.order = idx.map(function (qi) {
+      var perm = QUIZ[qi].o.map(function (_, k) { return k; });
+      shuffle(perm);
+      return { qi: qi, perm: perm };
+    });
+    fq.i = 0; fq.score = 0; fq.results = [];
+    fq.el("fq-card").hidden = false; fq.el("fq-result").hidden = true;
+    showQ();
+  }
+  function showQ() {
+    var item = fq.order[fq.i], Q = QUIZ[item.qi], c = CH[Q.ch];
+    fq.answered = false;
+    fq.el("fq-count").textContent = "문제 " + (fq.i + 1) + " / " + QUIZ.length;
+    fq.el("fq-score").textContent = "정답 " + fq.score;
+    fq.el("fq-fill").style.width = (fq.i / QUIZ.length) * 100 + "%";
+    fq.el("fq-ch").textContent = "Ch." + c.num + " · " + c.title;
+    fq.el("fq-q").textContent = Q.q;
+    var box = fq.el("fq-opts");
+    box.innerHTML = "";
+    item.perm.forEach(function (k, n) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "fq-opt"; b.dataset.k = k;
+      b.innerHTML = '<span class="n">' + String.fromCharCode(65 + n) + "</span><span>" + esc(Q.o[k]) + "</span>";
+      b.addEventListener("click", function () { answer(k); });
+      box.appendChild(b);
+    });
+    fq.el("fq-exp").hidden = true;
+    fq.el("fq-next").hidden = true;
+  }
+  function answer(k) {
+    if (fq.answered) return;
+    fq.answered = true;
+    var item = fq.order[fq.i], Q = QUIZ[item.qi], ok = k === Q.a, c = CH[Q.ch];
+    if (ok) fq.score++;
+    fq.results.push({ ch: Q.ch, ok: ok });
+    [].forEach.call(fq.el("fq-opts").querySelectorAll(".fq-opt"), function (b) {
+      var bk = Number(b.dataset.k);
+      b.disabled = true;
+      if (bk === Q.a) b.classList.add("right");
+      else if (bk === k) b.classList.add("wrong");
+    });
+    var exp = fq.el("fq-exp");
+    exp.innerHTML = (ok ? '<b class="ok">정답!</b> ' : '<b class="bad">오답.</b> ') + esc(Q.e) +
+      ' <a href="../chapters/' + Q.ch + '.html">→ Ch.' + c.num + " " + esc(c.title) + " 복습</a>";
+    exp.hidden = false;
+    fq.el("fq-score").textContent = "정답 " + fq.score;
+    fq.el("fq-fill").style.width = ((fq.i + 1) / QUIZ.length) * 100 + "%";
+    var nx = fq.el("fq-next");
+    nx.textContent = fq.i + 1 < QUIZ.length ? "다음 문제 →" : "결과 보기 →";
+    nx.hidden = false;
+    nx.focus({ preventScroll: true });
+  }
+  fq.el("fq-next").addEventListener("click", function () {
+    if (!fq.answered) return;
+    if (fq.i + 1 < QUIZ.length) { fq.i++; showQ(); } else showResult();
+  });
+  fq.el("fq-retry").addEventListener("click", function () {
+    startQuiz(true);
+    fq.el("final-quiz").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  var RANKS = [
+    [0, "AI 입문자", "이제 막 벡터와 내적을 만났다. 1장부터 차근차근 시뮬레이터를 만져 보자."],
+    [8, "토큰 수집가", "기본 개념은 잡혔다. 틀린 챕터를 골라 다시 읽으면 금방 올라간다."],
+    [14, "모델 엔지니어", "모델 카드와 서빙 스펙을 읽고 메모리·연산 트레이드오프를 논할 수 있는 수준이다."],
+    [18, "LLM 아키텍트!", "내적에서 서빙까지 꿰뚫고 있다. 이제 실제 논문과 오픈 모델 코드를 읽어 볼 차례다."],
+  ];
+  function perChapter() {
+    var m = {};
+    fq.results.forEach(function (r) { (m[r.ch] = m[r.ch] || { n: 0, ok: 0 }); m[r.ch].n++; if (r.ok) m[r.ch].ok++; });
+    return AB.CHAPTERS.filter(function (c) { return m[c.slug]; }).map(function (c) { return { c: c, n: m[c.slug].n, ok: m[c.slug].ok }; });
+  }
+  var SHORT = { vector: "벡터·행렬", neuron: "뉴런·신경망", training: "학습", embedding: "토큰·임베딩", attention: "어텐션", transformer: "Transformer", llm: "LLM", generation: "생성·디코딩", quantization: "양자화", rag: "RAG", design: "서빙 설계" };
+  function drawResult(ctx, w, h) {
+    var P = AB.palette(), rows = perChapter();
+    var left = Math.min(150, Math.max(92, w * 0.32)), right = 46, top = 12, rh = (h - top - 8) / Math.max(1, rows.length);
+    ctx.font = "12px " + AB.color("font");
+    ctx.textBaseline = "middle";
+    rows.forEach(function (r, i) {
+      var y = top + i * rh + rh / 2, frac = r.ok / r.n, bw = w - left - right;
+      var label = r.c.num + " " + (SHORT[r.c.slug] || r.c.title);
+      ctx.fillStyle = P.dim; ctx.textAlign = "right";
+      var maxLab = left - 10;
+      while (ctx.measureText(label).width > maxLab && label.length > 4) label = label.slice(0, -2) + "…";
+      ctx.fillText(label, left - 8, y);
+      ctx.fillStyle = P.surface; ctx.fillRect(left, y - rh * 0.3, bw, rh * 0.6);
+      ctx.fillStyle = frac >= 0.99 ? P.ok : frac >= 0.5 ? P.warn : P.bad;
+      ctx.fillRect(left, y - rh * 0.3, Math.max(2, bw * frac), rh * 0.6);
+      ctx.fillStyle = P.text; ctx.textAlign = "left"; ctx.font = "12px " + AB.color("mono");
+      ctx.fillText(r.ok + "/" + r.n, left + bw + 6, y);
+      ctx.font = "12px " + AB.color("font");
+    });
+  }
+  function showResult() {
+    fq.el("fq-card").hidden = true;
+    fq.el("fq-result").hidden = false;
+    fq.el("fq-fill").style.width = "100%";
+    fq.el("fq-count").textContent = "완료";
+    var s = fq.score, rank = RANKS[0];
+    RANKS.forEach(function (r) { if (s >= r[0]) rank = r; });
+    fq.el("fq-title").textContent = rank[1];
+    fq.el("fq-big").innerHTML = s + "<small> / " + QUIZ.length + "</small>";
+    fq.el("fq-msg").textContent = "정답률 " + Math.round((s / QUIZ.length) * 100) + " % · " + rank[2];
+    var weak = perChapter().filter(function (r) { return r.ok < r.n; });
+    fq.el("fq-review").innerHTML = weak.length
+      ? "다시 볼 챕터: " + weak.map(function (r) { return '<a href="../chapters/' + r.c.slug + '.html">Ch.' + r.c.num + " " + esc(r.c.title) + "</a>"; }).join(" · ")
+      : "모든 챕터 만점! 11장 플레이그라운드에서 자신만의 LLM 서빙 구성을 설계해 보자.";
+    var rowsN = perChapter().length;
+    if (!fq.cv) fq.cv = AB.canvas("#cv-fq", drawResult, { height: rowsN * 28 + 20 });
+    else fq.cv.resize();
+    fq.el("fq-result").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  startQuiz(false);
+})();
+</script>
+</body>
+</html>

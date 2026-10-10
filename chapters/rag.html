@@ -145,7 +145,7 @@ https://creativecommons.org/licenses/by/4.0/
   <!-- ============================================================ 2 -->
   <section id="pipeline">
     <h2>RAG 파이프라인 한눈에</h2>
-    <p>RAG 시스템은 두 개의 흐름으로 이루어진다. <b>색인</b><span class="en">(indexing)</span>은 문서가 바뀔 때마다 오프라인으로 돌리는 준비 작업이고, <b>질의</b><span class="en">(query)</span>는 사용자가 질문할 때마다 실시간으로 도는 흐름이다. 두 흐름은 같은 임베딩 모델을 공유해야 한다. 문서와 질문이 같은 벡터 공간에 있어야 거리를 비교할 수 있기 때문이다.</p>
+    <p>RAG 시스템은 두 개의 흐름으로 이루어진다. <b>색인</b><span class="en">(indexing)</span>은 문서가 바뀔 때마다 오프라인으로 돌리는 준비 작업이고, <b>질의</b><span class="en">(query)</span>는 사용자가 질문할 때마다 실시간으로 도는 흐름이다. 두 흐름은 <b>서로 정렬된 임베딩 공간</b>을 사용해야 한다. 같은 모델을 공유하는 방식이 흔하지만, DPR처럼 질문용·문서용 인코더를 별도로 두고 함께 학습할 수도 있다. 핵심은 모델의 가중치가 같다는 것이 아니라, 두 인코더의 출력에 같은 유사도 함수를 적용하도록 학습했다는 것이다.</p>
     <figure class="diagram">
       <svg viewBox="0 0 766 420" role="img" aria-label="RAG 색인 파이프라인과 질의 파이프라인">
         <defs><marker id="rg-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--text-dim)"/></marker>
@@ -161,7 +161,7 @@ https://creativecommons.org/licenses/by/4.0/
 
         <text x="12" y="150" class="t-acc">② 질의 (온라인, 질문마다)</text>
         <rect x="12" y="164" width="160" height="66" rx="10" class="f-elev"/><text x="92" y="192" class="t" text-anchor="middle">사용자 질문</text><text x="92" y="214" class="t-dim" text-anchor="middle">"연차 며칠?"</text>
-        <rect x="206" y="164" width="160" height="66" rx="10" class="f-acc-soft"/><text x="286" y="192" class="t" text-anchor="middle">질의 임베딩</text><text x="286" y="214" class="t-dim" text-anchor="middle">같은 모델</text>
+        <rect x="206" y="164" width="160" height="66" rx="10" class="f-acc-soft"/><text x="286" y="192" class="t" text-anchor="middle">질의 임베딩</text><text x="286" y="214" class="t-dim" text-anchor="middle">정렬된 벡터 공간</text>
         <rect x="400" y="164" width="160" height="66" rx="10" class="f-surface"/><text x="480" y="192" class="t" text-anchor="middle">검색 top-k</text><text x="480" y="214" class="t-dim" text-anchor="middle">ANN + BM25</text>
         <rect x="594" y="164" width="160" height="66" rx="10" class="f-surface"/><text x="674" y="192" class="t" text-anchor="middle">리랭킹</text><text x="674" y="214" class="t-dim" text-anchor="middle">교차 인코더·MMR</text>
         <line x1="172" y1="197" x2="204" y2="197" class="s-line" marker-end="url(#rg-ar)"/>
@@ -179,7 +179,7 @@ https://creativecommons.org/licenses/by/4.0/
         <path d="M92 230 L92 392 L700 392 L700 368" class="s-line" stroke-dasharray="4 4" marker-end="url(#rg-ar)"/>
         <text x="110" y="384" class="t-mono">질문 원문도 프롬프트에 함께 들어간다</text>
       </svg>
-      <figcaption><b>그림 10-1.</b> RAG의 두 흐름. 위: 문서를 조각내 벡터로 바꿔 저장하는 색인. 아래: 질문을 같은 모델로 벡터화해 가까운 청크를 찾고, 다시 순위를 매긴 뒤 프롬프트에 조립해 LLM에 넘긴다. LLM 자체는 바뀌지 않는다.</figcaption>
+      <figcaption><b>그림 10-1.</b> RAG의 두 흐름. 위: 문서를 조각내 벡터로 바꿔 저장하는 색인. 아래: 질문을 문서와 정렬된 공간으로 벡터화해 가까운 청크를 찾고, 다시 순위를 매긴 뒤 프롬프트에 조립해 LLM에 넘긴다. LLM 자체는 바뀌지 않는다.</figcaption>
     </figure>
     <p>각 상자가 하나씩 설계 선택이다. 청크는 얼마나 크게 자를까? 임베딩 모델은 무엇을 쓸까? 키워드 검색을 섞을까? 몇 개를 가져와서 몇 개를 넣을까? 어떤 순서로? 이 장의 나머지는 이 상자들을 왼쪽부터 하나씩 열어 본다.</p>
   </section>
@@ -736,7 +736,7 @@ https://creativecommons.org/licenses/by/4.0/
     <h2>핵심 정리</h2>
     <ol>
       <li>RAG는 질문마다 관련 문서를 검색해 프롬프트에 넣는 '오픈북' 방식이다. 지식 컷오프·비공개 문서·출처 제시 문제를 가중치 수정 없이 풀고, 문서만 바꾸면 지식이 바뀐다.</li>
-      <li>색인(청킹 → 임베딩 → 벡터 DB)과 질의(질의 임베딩 → top-k 검색 → 리랭킹 → 프롬프트 조립 → 생성)의 두 흐름이 같은 임베딩 모델을 공유한다.</li>
+      <li>색인(청킹 → 임베딩 → 벡터 DB)과 질의(질의 임베딩 → top-k 검색 → 리랭킹 → 프롬프트 조립 → 생성)의 두 흐름은 같은 임베딩 모델 또는 함께 학습한 질문·문서 인코더를 사용해 정렬된 벡터 공간에서 검색한다.</li>
       <li>청크 크기는 정밀도와 맥락의 트레이드오프다. 고정 길이는 문장을 자를 수 있고, 문장·문단 분할과 오버랩(저장량 약 \(L/(L-O)\)배)이 경계 문제를 줄인다.</li>
       <li>검색은 정규화된 벡터의 코사인(= 내적) 상위 k다. 실제 시스템은 384~4,096차원 신경망 임베딩을 쓰며, 이 장의 문자 n-gram TF-IDF는 표면 글자가 겹쳐야만 찾는 교육용 대용품이다.</li>
       <li>BM25는 정확한 키워드·코드에 강하고 벡터는 의미 유사성에 강하다. RRF \(\sum 1/(60+\text{rank})\)는 점수 정규화 없이 두 순위를 합치는 견고한 기본값이다.</li>

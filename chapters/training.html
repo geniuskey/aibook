@@ -160,7 +160,7 @@ https://creativecommons.org/licenses/by/4.0/
     </div>
     <p>문제는 "충분히 작은"이 얼마냐다. 너무 작으면 영원히 걸리고, 너무 크면 골짜기를 건너뛰어 반대편 벽으로 튕겨 나간다. 가장 단순한 1차원 이차 함수 \(\mathcal L = \tfrac{\lambda}{2}\theta^2\)으로 정확히 계산할 수 있다. 기울기가 \(\lambda\theta\)이므로 갱신은 \(\theta_{t+1} = (1-\eta\lambda)\theta_t\)다. 곱해지는 인자 \(|1-\eta\lambda|\)가 1보다 작아야 수렴하므로</p>
     <div class="formula">$$0 < \eta < \frac{2}{\lambda}, \qquad \text{가장 빠른 수렴: } \eta = \frac1\lambda \;(\text{한 번에 바닥})$$
-      <div class="where">다차원에서는 \(\lambda\) 자리에 헤시안(2차 미분 행렬)의 가장 큰 고윳값 \(\lambda_{\max}\)가 들어간다. 가장 가파른 방향이 학습률의 상한을 정하고, 가장 완만한 방향(\(\lambda_{\min}\))이 수렴 속도를 정한다. 그 비율 \(\kappa = \lambda_{\max}/\lambda_{\min}\)를 <span class="term">조건수</span><span class="en">(condition number)</span>라 한다.</div>
+      <div class="where">양의 정부호 헤시안을 갖는 다차원 이차 함수에서는 \(\lambda\) 자리에 헤시안(2차 미분 행렬)의 가장 큰 고윳값 \(\lambda_{\max}\)가 들어간다. 가장 가파른 방향이 학습률의 상한을 정하고, 가장 완만한 방향(\(\lambda_{\min}\))이 수렴 속도를 정한다. 그 비율 \(\kappa = \lambda_{\max}/\lambda_{\min}\)를 <span class="term">조건수</span><span class="en">(condition number)</span>라 한다.</div>
     </div>
     <figure class="diagram">
       <svg viewBox="0 0 800 250" role="img" aria-label="학습률에 따른 1차원 경사하강 궤적">
@@ -303,7 +303,7 @@ https://creativecommons.org/licenses/by/4.0/
       <div class="sim-note">해볼 것: ① "순전파 ▶"를 다섯 번 눌러 m → z → a → d → L 순서로 값이 채워지는 것을 본다. ② "◀ 역전파"를 눌러 L에서 출발한 기울기(분홍)가 간선의 국소 기울기(×값)와 곱해지며 거꾸로 흐르는 것을 확인하자. 수치 미분 \((L(w+h)-L(w-h))/2h\)과 10자리 가까이 일치한다. ③ 회색 입력 노드(w, x, b, y)를 좌우로 끌어 값을 바꾸면 모든 값과 기울기가 즉시 다시 계산된다. z를 크게(예: w = 3, x = 2) 만들면 σ가 포화되어 a(1−a) ≈ 0이 되고 ∂L/∂w가 사라진다 — 9절 기울기 소실의 축소판이다. ④ "경사 한 스텝"을 반복해 L이 줄어드는 것을 보자.</div>
     </div>
     <div class="callout deep"><strong>역전파 = 역방향 자동 미분</strong>
-      <p>PyTorch·JAX의 <code>loss.backward()</code>는 순전파 때 실행된 연산을 테이프(그래프)에 기록해 두고, 이 시뮬레이터와 똑같이 거꾸로 훑는다. 이것을 <span class="term">역방향 모드 자동 미분</span><span class="en">(reverse-mode autodiff)</span>이라 한다. 출력이 스칼라(손실) 하나이고 입력(파라미터)이 수십억 개일 때 역방향 모드가 압도적으로 유리하다. 행렬 연산으로 보면 \(Y = XW\)의 역전파는 \(\partial L/\partial X = (\partial L/\partial Y)\,W^\top\), \(\partial L/\partial W = X^\top(\partial L/\partial Y)\)로, 순전파 행렬곱 1번에 역전파 행렬곱 2번이 필요하다. 학습 FLOPs가 "파라미터당 토큰당 6"(순전파 2 + 역전파 4)인 이유다(<a href="llm.html">7장</a>의 \(C \approx 6ND\)).</p>
+      <p>PyTorch의 <code>loss.backward()</code>와 JAX의 <code>jax.grad(loss_fn)</code>은 연산의 미분 규칙과 중간값을 이용해, 이 시뮬레이터처럼 출력에서 입력 쪽으로 기울기를 전파한다. PyTorch는 실행 중 동적 그래프를 만들고, JAX는 함수를 추적해 미분된 함수로 변환한다. 이것을 <span class="term">역방향 모드 자동 미분</span><span class="en">(reverse-mode autodiff)</span>이라 한다. 출력이 스칼라(손실) 하나이고 입력(파라미터)이 수십억 개일 때 역방향 모드가 압도적으로 유리하다. 행렬 연산으로 보면 \(Y = XW\)의 역전파는 \(\partial L/\partial X = (\partial L/\partial Y)\,W^\top\), \(\partial L/\partial W = X^\top(\partial L/\partial Y)\)로, 순전파 행렬곱 1번에 역전파 행렬곱 2번이 필요하다. 학습 FLOPs가 "파라미터당 토큰당 6"(순전파 2 + 역전파 4)인 이유다(<a href="llm.html">7장</a>의 \(C \approx 6ND\)).</p>
     </div>
   </section>
 
@@ -755,7 +755,7 @@ https://creativecommons.org/licenses/by/4.0/
         <tr><td>BF16</td><td class="num">16 (E8M7)</td><td>필요 없음(FP32와 같은 지수 범위)</td><td>2020년대 표준. GPT-3 이후 대부분</td></tr>
         <tr><td>FP8</td><td class="num">8 (E4M3 / E5M2)</td><td>텐서 또는 블록 단위 스케일</td><td>DeepSeek-V3(2024): 활성값 1×128, 가중치 128×128 블록 스케일, 누적은 높은 정밀도로</td></tr>
         <tr><td>MXFP4</td><td class="num">4 (E2M1)</td><td>32개 블록 + 2의 거듭제곱(E8M0) 스케일, 유효 4.25비트</td><td>OCP 표준 형식</td></tr>
-        <tr><td>NVFP4</td><td class="num">4 (E2M1)</td><td>16개 블록 + FP8(E4M3) 스케일 + 텐서별 FP32 스케일, 유효 4.5비트</td><td>NVIDIA 12B 모델, 10T 토큰 사전학습(2025)</td></tr>
+        <tr><td>NVFP4</td><td class="num">4 (E2M1)</td><td>16개 블록 + FP8(E4M3) 스케일 + 텐서별 FP32 스케일, 원소 N개에 대해 유효 4.5 + 32/N비트</td><td>NVIDIA 12B 모델, 10T 토큰 사전학습(2025)</td></tr>
       </tbody>
     </table></div>
     <p>NVIDIA는 2025년 하반기에 12B 하이브리드(Mamba–Transformer) 모델을 <strong>10T 토큰 동안 NVFP4로 사전학습</strong>해, 손실과 하류 과제 정확도가 FP8 기준선에 근접함을 보였다(arXiv 2509.25149). 4비트로 그냥 바꾼 것은 아니다. 이상값을 퍼뜨리는 무작위 Hadamard 변환, 순전파와 역전파에서 같은 양자화가 되도록 하는 가중치의 2차원 블록 스케일, 기울기 반올림 편향을 없애는 확률적 반올림, 그리고 민감한 일부 층은 높은 정밀도로 남기는 처리가 함께 들어갔다. 같은 보고에서 8B 실험으로 비교하면 MXFP4는 NVFP4와 같은 손실에 도달하는 데 약 36% 더 많은 토큰이 필요했다. 블록이 작고 스케일이 정밀한 쪽이 유리하다는 뜻이다.</p>
@@ -769,7 +769,7 @@ https://creativecommons.org/licenses/by/4.0/
     <h2>핵심 정리</h2>
     <ol>
       <li>학습은 손실 \(\mathcal L(\theta)\)를 최소화하는 최적화다. 회귀는 MSE, 분류와 언어 모델은 교차 엔트로피 \(-\log p_c\)를 쓰며, 소프트맥스+CE의 로짓 기울기는 \(p - y\)로 확신에 찬 오답에서도 사라지지 않는다.</li>
-      <li>경사하강 \(\theta \leftarrow \theta - \eta\nabla\mathcal L\)은 \(\eta &lt; 2/\lambda_{\max}\)일 때 수렴한다. 조건수 \(\lambda_{\max}/\lambda_{\min}\)가 크면 지그재그와 느린 수렴이 생긴다.</li>
+      <li>양의 정부호 이차 손실에서 경사하강 \(\theta \leftarrow \theta - \eta\nabla\mathcal L\)은 \(0 &lt; \eta &lt; 2/\lambda_{\max}\)일 때 수렴한다. 일반 비볼록 신경망에는 이 조건만으로 전역 최솟값 수렴을 보장할 수 없다. 조건수 \(\lambda_{\max}/\lambda_{\min}\)가 크면 지그재그와 느린 수렴이 생긴다.</li>
       <li>역전파는 계산 그래프를 거꾸로 훑으며 국소 기울기를 곱하는 연쇄법칙의 효율적 구현이다. 순전파 중간값을 저장해야 하며, 비용은 순전파의 약 2배(합쳐서 3배)다.</li>
       <li>미니배치 SGD는 전체 기울기의 불편 추정을 쓰며 노이즈 분산은 배치 크기에 반비례한다. 1 에폭 = 데이터 한 바퀴.</li>
       <li>Momentum은 관성으로 진동을 상쇄하고, RMSProp은 좌표별로 보폭을 정규화하며, Adam(W)은 둘을 결합한다. LLM 학습은 AdamW + warmup + cosine decay + 기울기 클리핑이 표준이다.</li>
@@ -787,9 +787,9 @@ https://creativecommons.org/licenses/by/4.0/
       <div class="quiz-q"><p>1. 이진 분류에서 정답이 y = 1인데 모델이 p = σ(z) = 0.001을 냈다. 로짓 z에 대한 기울기 크기를 비교하면?</p><div class="opts">
         <button class="opt">MSE가 CE보다 훨씬 크다</button><button class="opt" data-correct>CE는 약 1, MSE는 약 0.002로 CE가 훨씬 크다</button><button class="opt">둘 다 0에 가깝다</button><button class="opt">둘 다 무한대다</button>
       </div><div class="quiz-exp">∂CE/∂z = p − y ≈ −0.999로 크기 약 1이다. ∂MSE/∂z = 2(p − y)·p(1 − p) ≈ 2·(−0.999)·0.000999 ≈ −0.002로, 시그모이드 포화 항 p(1 − p)가 기울기를 거의 지운다. 그래서 분류에는 교차 엔트로피를 쓴다.</div></div>
-      <div class="quiz-q"><p>2. 손실의 헤시안 고윳값이 0.5 ~ 40 사이에 있다. 일반 경사하강이 발산하지 않는 학습률의 상한은?</p><div class="opts">
+      <div class="quiz-q"><p>2. 양의 정부호 이차 손실의 헤시안 고윳값이 0.5 ~ 40 사이에 있다. 일반 경사하강이 수렴하는 학습률의 경계 상한은?</p><div class="opts">
         <button class="opt">4</button><button class="opt">2</button><button class="opt" data-correct>0.05</button><button class="opt">0.0125</button>
-      </div><div class="quiz-exp">발산 조건은 가장 큰 고윳값이 정한다: η &lt; 2/λ<sub>max</sub> = 2/40 = 0.05. 이 학습률에서 가장 완만한 방향(λ = 0.5)의 수렴 인자는 1 − 0.05·0.5 = 0.975로, 매우 느리다. 조건수 80의 대가다.</div></div>
+      </div><div class="quiz-exp">수렴 조건은 0 &lt; η &lt; 2/λ<sub>max</sub> = 0.05다. 경계값 η = 0.05에서는 가장 가파른 방향의 인자가 −1이라 진동이 줄지 않는다. 0.05보다 조금 작은 학습률에서도 가장 완만한 방향(λ = 0.5)의 인자는 약 0.975로, 수렴이 느리다. 조건수 80의 대가다.</div></div>
       <div class="quiz-q"><p>3. 계산 그래프에서 덧셈 노드 z = m + b와 곱셈 노드 m = w·x가 역전파 때 하는 일로 옳은 것은?</p><div class="opts">
         <button class="opt">덧셈은 기울기를 반으로 나눠 주고, 곱셈은 그대로 전달한다</button><button class="opt" data-correct>덧셈은 기울기를 양쪽에 그대로 복사하고, 곱셈은 상대편 입력값을 곱해 전달한다</button><button class="opt">둘 다 기울기를 0으로 만든다</button><button class="opt">곱셈은 기울기를 제곱한다</button>
       </div><div class="quiz-exp">∂z/∂m = ∂z/∂b = 1이므로 덧셈은 받은 기울기를 두 입력에 그대로 나눠 준다(분배기). ∂m/∂w = x, ∂m/∂x = w이므로 곱셈은 서로의 값을 바꿔 곱한다(교환기). 그래서 곱셈의 역전파에는 순전파 때의 입력값 저장이 필요하다.</div></div>

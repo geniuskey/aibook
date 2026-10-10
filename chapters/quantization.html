@@ -597,7 +597,7 @@ https://creativecommons.org/licenses/by/4.0/
         <text x="310" y="140" text-anchor="middle" class="t-mono" style="font-size:11px">16 × E2M1</text><text x="598" y="140" text-anchor="middle" class="t-mono" style="font-size:11px">16 × E2M1</text>
         <rect x="740" y="120" width="44" height="28" rx="4" class="f-surface" style="stroke:var(--accent-2);stroke-dasharray:3 2"/><text x="762" y="138" text-anchor="middle" class="t-mono" style="font-size:10px">FP32</text>
         <text x="762" y="164" text-anchor="middle" class="t-dim" style="font-size:11px">텐서당 1개</text>
-        <text x="150" y="170" class="t-dim">(16 × 4 + 8) / 16 = <tspan style="fill:var(--accent-2)">4.5비트/원소</tspan> · 스케일 = FP8 값 × 텐서 스케일</text>
+        <text x="150" y="170" class="t-dim">(16 × 4 + 8) / 16 = <tspan style="fill:var(--accent-2)">4.5비트/원소</tspan> + 텐서당 32비트 · 스케일 = FP8 값 × 텐서 스케일</text>
         <path d="M20 190 H780" class="s-line" style="stroke-dasharray:2 4"/>
         <text x="20" y="223" class="t">원소 E2M1</text><rect x="150" y="206" width="20" height="24" class="f-acc2-soft" style="stroke:var(--border)"/><text x="160" y="223" text-anchor="middle" class="t-mono" style="font-size:11px">S</text><rect x="170" y="206" width="20" height="24" class="f-acc-soft" style="stroke:var(--border)"/><text x="180" y="223" text-anchor="middle" class="t-mono" style="font-size:11px">E</text><rect x="190" y="206" width="20" height="24" class="f-acc-soft" style="stroke:var(--border)"/><text x="200" y="223" text-anchor="middle" class="t-mono" style="font-size:11px">E</text><rect x="210" y="206" width="20" height="24" class="f-warn-soft" style="stroke:var(--border)"/><text x="220" y="223" text-anchor="middle" class="t-mono" style="font-size:11px">M</text>
         <text x="244" y="223" class="t-dim">±{0, 0.5, 1, 1.5, 2, 3, 4, 6} — 0.5는 비정규수, 최대 6</text>
@@ -616,10 +616,11 @@ https://creativecommons.org/licenses/by/4.0/
       <tbody>
         <tr><td>INT4 g128 (GPTQ·AWQ식)</td><td>INT4</td><td class="num">128</td><td>FP16</td><td class="num">4.125</td><td>없음 (역양자화 후 BF16 계산)</td></tr>
         <tr><td>MXFP4 (OCP MX)</td><td>E2M1</td><td class="num">32</td><td>E8M0 (2의 거듭제곱)</td><td class="num">4.25</td><td>Blackwell 이후, AMD MI350 등</td></tr>
-        <tr><td>NVFP4</td><td>E2M1</td><td class="num">16</td><td>E4M3 + 텐서 FP32</td><td class="num">4.5</td><td>Blackwell·Rubin</td></tr>
+        <tr><td>NVFP4</td><td>E2M1</td><td class="num">16</td><td>E4M3 + 텐서 FP32</td><td class="num">4.5 + 32/N</td><td>Blackwell·Rubin</td></tr>
       </tbody>
     </table></div>
-    <p>NVFP4가 0.25비트를 더 쓰는 대가로 얻는 것은 두 가지다. 블록이 절반이라 이상치 하나가 망치는 이웃이 15개뿐이고, 스케일이 2의 거듭제곱에 묶이지 않아 블록 최댓값을 정확히 6에 맞출 수 있다. 아래 시뮬레이터로 그 차이를 직접 재 보자.</p>
+    <p>표의 비트 수는 원소 수가 블록 크기의 배수일 때 값과 스케일만 세는 저장량이며, 하드웨어 정렬 패딩·메타데이터는 포함하지 않는다.</p>
+    <p>NVFP4가 0.25비트를 더 쓰는 대가로 얻는 것은 두 가지다. 블록이 절반이라 이상치 하나가 망치는 이웃이 15개뿐이고, 스케일이 2의 거듭제곱에 묶이지 않아 블록 최댓값을 6에 더 가깝게 맞출 수 있다. 다만 블록 스케일도 FP8로 반올림되므로 항상 정확히 6이 되는 것은 아니다. 아래 시뮬레이터로 그 차이를 직접 재 보자.</p>
 
     <div class="sim" id="sim-fp4">
       <div class="sim-head"><span class="sim-tag">SIMULATOR</span><h3>블록 스케일 양자화 비교: INT4 g128 · MXFP4 · NVFP4</h3></div>
@@ -635,7 +636,7 @@ https://creativecommons.org/licenses/by/4.0/
       <div class="sim-readout">
         <div class="stat"><span class="k">INT4 g128 SQNR · 4.125비트</span><span class="v" id="qz-f-int">—</span></div>
         <div class="stat"><span class="k">MXFP4 SQNR · 4.25비트</span><span class="v" id="qz-f-mx">—</span></div>
-        <div class="stat"><span class="k">NVFP4 SQNR · 4.5비트</span><span class="v" id="qz-f-nv">—</span></div>
+        <div class="stat"><span class="k">NVFP4 SQNR · 약 4.56비트</span><span class="v" id="qz-f-nv">—</span></div>
         <div class="stat"><span class="k">고른 구간의 스케일</span><span class="v" id="qz-f-sc" style="font-size:13px">—</span></div>
       </div>
       <div class="sim-note">교육용으로 만든 시드 고정 데이터다. 가중치형 = 표준정규 + 약 1% 위치에 무작위 이상치, 활성값형 = 작은 값 + 고정된 몇 개 채널의 큰 이상치. 세 코덱은 E2M1 최근접 반올림(동점은 가수 0 쪽), E8M0 스케일 \(2^{\lfloor\log_2 \max\rfloor-2}\), E4M3 최근접 짝수 반올림·비정규수·448 포화를 그대로 구현했다(node 단위 테스트 통과). SQNR = 10 log₁₀(Σx² / Σ(x−x̂)²). 해볼 것: ① 기본값에서 NVFP4 &gt; MXFP4 &gt; INT4 g128 순서를 확인하자 — 셋의 차이는 대부분 이상치가 든 블록에서 난다(띠의 진한 칸). ② 이상치 세기를 1로 내리면(이상치 없음) 셋의 차이가 줄어든다. 이때도 MX가 NV보다 나쁜 이유는 2의 거듭제곱 스케일이 블록 최댓값을 6에 맞추지 못하기 때문이다. ③ 아래 그림에서 한 막대를 끌어 블록 최댓값을 바꾸며 MX 스케일이 2배씩 '계단'으로 뛰는 것, 그리고 최댓값이 6·X를 넘는 순간 ▲가 포화되는 것을 보자. ④ 전체 SQNR은 에너지가 큰 이상치가 지배하므로, 크기 상위 2%를 뺀 '나머지 98%' SQNR도 함께 보자. 활성값형 + 이상치 40에서 INT4 g128의 나머지 SQNR은 0 dB 근처로 무너진다 — 128개가 큰 채널 하나에 스케일을 맞추느라 나머지가 거의 전부 0으로 뭉개진다. MXFP4·NVFP4는 이상치의 피해가 32·16개 블록 안에 갇힌다. 작은 블록이 W4A4를 가능하게 하는 이유다.</div>
@@ -660,7 +661,7 @@ https://creativecommons.org/licenses/by/4.0/
       <li>LLM 활성값에는 소수 채널의 큰 이상치가 있다. SmoothQuant는 \(XW = (X\,\mathrm{diag}(s)^{-1})(\mathrm{diag}(s)W)\)로 난이도를 가중치로 옮겨 W8A8을 가능하게 했다.</li>
       <li>GPTQ는 헤시안 \(H = 2XX^\top\)을 써서 한 열의 반올림 오차를 남은 열로 보정하고, AWQ는 활성값이 큰 중요 채널을 스케일로 보호한다. 둘 다 재학습 없는 PTQ다.</li>
       <li>NF4(정규 분위수 격자), GGUF k-quant(2단계 블록 스케일), MX/NVFP4(하드웨어 블록 스케일), FP8 KV 캐시 등 '작은 블록마다 스케일'이 현재 저비트 형식의 공통 원리다.</li>
-      <li>FP4(E2M1)는 ±{0, 0.5, 1, 1.5, 2, 3, 4, 6}뿐이라 블록 스케일이 필수다. MXFP4 = 32개 + E8M0(2의 거듭제곱) 스케일, 4.25비트. NVFP4 = 16개 + E4M3 스케일 + 텐서 FP32 스케일, 4.5비트. 작은 블록과 정밀한 스케일 덕분에 NVFP4가 대체로 더 정확하다.</li>
+      <li>FP4(E2M1)는 ±{0, 0.5, 1, 1.5, 2, 3, 4, 6}뿐이라 블록 스케일이 필수다. MXFP4 = 32개 + E8M0(2의 거듭제곱) 스케일, 4.25비트. NVFP4 = 16개 + E4M3 스케일 + 텐서 FP32 스케일, 원소 N개에 대해 4.5 + 32/N비트(이 시뮬레이터의 512개에서는 4.5625비트). 작은 블록과 정밀한 스케일 덕분에 NVFP4가 대체로 더 정확하다.</li>
       <li>FP4는 이제 하드웨어(Blackwell·Rubin FP4 텐서 코어)·배포(gpt-oss MXFP4 MoE, DeepSeek-V4 FP4 전문가 + FP8 나머지)·학습(NVFP4 12B·10T 토큰 사전학습)까지 들어왔다. MoE는 파라미터 대부분이 전문가라 전문가만 4비트로 낮춰도 크기가 크게 준다.</li>
     </ol>
   </section>
@@ -1500,7 +1501,7 @@ https://creativecommons.org/licenses/by/4.0/
     var bi = 0, bd = Infinity;
     for (var i = 0; i < 8; i++) {
       var d = Math.abs(a - E2M1[i]);
-      if (d < bd - 1e-12 || (Math.abs(d - bd) <= 1e-12 && (i & 1) === 0)) { bd = d; bi = i; }
+      if (d < bd || (d === bd && (i & 1) === 0)) { bd = d; bi = i; }
     }
     return s * E2M1[bi];
   }
@@ -1511,7 +1512,7 @@ https://creativecommons.org/licenses/by/4.0/
     var e = Math.floor(Math.log2(a)), emin = 1 - bias;
     if (e < emin) e = emin;
     var step = Math.pow(2, e - m), q = a / step, r = Math.round(q);
-    if (Math.abs(q - Math.floor(q) - 0.5) < 1e-9) r = (Math.floor(q) % 2 === 0) ? Math.floor(q) : Math.floor(q) + 1;
+    if (q - Math.floor(q) === 0.5) r = (Math.floor(q) % 2 === 0) ? Math.floor(q) : Math.floor(q) + 1;
     var v = r * step;
     return s * Math.min(v, maxv);
   }
@@ -1543,13 +1544,13 @@ https://creativecommons.org/licenses/by/4.0/
   function quantNV(x) {
     var g = 16, out = new Float64Array(x.length), scales = [], at = 0;
     for (var i = 0; i < x.length; i++) at = Math.max(at, Math.abs(x[i]));
-    var st = at > 0 ? at / (6 * 448) : 1; // 텐서 스케일(FP32): 블록 스케일이 E4M3 범위(≤448)에 들어오게
+    var st = at > 0 ? Math.fround(at / (6 * 448)) : 1; // 텐서 스케일(FP32): 블록 스케일이 E4M3 범위(≤448)에 들어오게
     for (var b = 0; b < x.length; b += g) {
       var am = 0; for (i = b; i < b + g; i++) am = Math.max(am, Math.abs(x[i]));
       var sb = qE4M3(am / 6 / st), sc = sb * st; scales.push(sb);
       for (i = b; i < b + g; i++) out[i] = sc > 0 ? qE2M1(x[i] / sc) * sc : 0;
     }
-    return { y: out, scales: scales, block: g, tensorScale: st, bits: 4 + 8 / 16 };
+    return { y: out, scales: scales, block: g, tensorScale: st, bits: 4 + 8 / 16 + 32 / x.length };
   }
   var FN = 512, fSeed = 7, fBase = null, fX = null, fRes = null, fSel = 3, fLay = null;
   var gFk = AB.seg("qz-f-kind", function () { fGen(); });

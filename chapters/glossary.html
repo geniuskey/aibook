@@ -13,7 +13,7 @@ https://creativecommons.org/licenses/by/4.0/
 <link rel="icon" href="../favicon.ico" sizes="any">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
-<title>용어집 &amp; 종합 퀴즈 · AIBook</title>
+<title>용어집 · 커리큘럼 맵 · 종합 퀴즈 · AIBook</title>
 <meta name="description" content="벡터에서 LLM 서빙까지, AI 핵심 용어 170여 개를 한국어·영어·약어로 검색하고, 전 챕터를 아우르는 24문항 종합 퀴즈로 실력을 점검한다.">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
@@ -69,15 +69,16 @@ https://creativecommons.org/licenses/by/4.0/
 <body data-chapter="glossary">
 <main class="chapter">
   <header class="chapter-hero">
-    <div class="eyebrow">Chapter 13</div>
-    <h1>용어집 &amp; 종합 퀴즈</h1>
+    <div class="eyebrow">Chapter 17</div>
+    <h1>용어집 · 커리큘럼 맵 · 종합 퀴즈</h1>
     <p class="lead">AI 분야는 약어와 영어 용어의 숲이다. GEMM, GELU, BPE, GQA, MLA, RoPE, RMSNorm, KV 캐시, BF16, NVFP4, AWQ, HNSW, RRF, GRPO, MCP… 이 장은 책 전체에 흩어진 핵심 용어를 한곳에 모은 사전이자, 벡터에서 추론 모델·에이전트, LLM 서빙까지 전 범위를 점검하는 마무리 시험이다.</p>
     <ul class="objectives">
+      <li>영역 A~G(ML 기초, 딥러닝·LLM 원리, 프롬프트, RAG, 에이전트 시스템, 실전 역량, 최신 기술)의 핵심 개념 120여 개를 커리큘럼 맵으로 점검하고, 각 개념을 다루는 절로 바로 이동할 수 있다.</li>
       <li>한국어·영어·약어 어느 쪽으로든 용어를 찾아 정의와 해당 챕터로 바로 이동할 수 있다.</li>
       <li>내적과 행렬곱에서 어텐션, LLM 학습·생성, 양자화, RAG, 추론 모델과 에이전트, 서빙 설계까지 각 장의 핵심 개념과 실제 수치를 스스로 점검한다.</li>
       <li>틀린 문제의 챕터를 확인하고 약한 부분을 다시 공부할 계획을 세운다.</li>
     </ul>
-    <p style="margin-top:16px"><a href="#glossary">→ 용어집 바로 가기</a> · <a href="#final-quiz">→ 종합 퀴즈 바로 풀기</a></p>
+    <p style="margin-top:16px"><a href="#curriculum">→ 커리큘럼 맵</a> · <a href="#glossary">→ 용어집 바로 가기</a> · <a href="#final-quiz">→ 종합 퀴즈 바로 풀기</a></p>
   </header>
 
   <section id="glossary">
@@ -102,9 +103,9 @@ https://creativecommons.org/licenses/by/4.0/
 
   <section id="final-quiz">
     <h2>종합 퀴즈</h2>
-    <p>전 챕터에서 고른 24문항이다. 한 문제씩 풀고 나면 해설과 관련 챕터 링크가 나온다. 끝까지 풀면 챕터별 정답률 그래프와 “등급”을 보여 준다. 다시 풀기를 누르면 문제와 보기 순서가 섞인다. 계산 문제는 종이에 직접 셈해 보고 고르자.</p>
+    <p>전 챕터에서 고른 <span id="fq-total">여러</span> 문항이다. 한 문제씩 풀고 나면 해설과 관련 챕터 링크가 나온다. 끝까지 풀면 챕터별 정답률 그래프와 “등급”을 보여 준다. 다시 풀기를 누르면 문제와 보기 순서가 섞인다. 계산 문제는 종이에 직접 셈해 보고 고르자.</p>
     <div class="fq" id="fq">
-      <div class="fq-top"><span id="fq-count">문제 1 / 24</span><span id="fq-score">정답 0</span></div>
+      <div class="fq-top"><span id="fq-count">문제 1</span><span id="fq-score">정답 0</span></div>
       <div class="fq-bar"><i id="fq-fill"></i></div>
       <div class="fq-card" id="fq-card">
         <div class="fq-ch" id="fq-ch"></div>
@@ -385,7 +386,7 @@ https://creativecommons.org/licenses/by/4.0/
 
   var qEl = document.getElementById("gl-q"), listEl = document.getElementById("gl-list"), countEl = document.getElementById("gl-count");
   // 챕터 칩은 AB.CHAPTERS에서 생성(장 추가·번호 변경에 자동 대응)
-  var CHIP = { vector: "벡터", neuron: "뉴런", training: "학습", embedding: "임베딩", attention: "어텐션", transformer: "Transformer", llm: "LLM", generation: "생성", quantization: "양자화", rag: "RAG", agent: "에이전트", design: "서빙 설계" };
+  var CHIP = { ml: "ML 기초", prompt: "프롬프트", aisystem: "AI 시스템", multimodal: "멀티모달", practice: "실전 역량", vector: "벡터", neuron: "뉴런", training: "학습", embedding: "임베딩", attention: "어텐션", transformer: "Transformer", llm: "LLM", generation: "생성", quantization: "양자화", rag: "RAG", agent: "에이전트", design: "서빙 설계" };
   (function () {
     var box = document.getElementById("gl-ch");
     AB.CHAPTERS.forEach(function (c) {
@@ -530,17 +531,17 @@ https://creativecommons.org/licenses/by/4.0/
   });
 
   var RANKS = [
-    [0, "AI 입문자", "이제 막 벡터와 내적을 만났다. 1장부터 차근차근 시뮬레이터를 만져 보자."],
-    [10, "토큰 수집가", "기본 개념은 잡혔다. 틀린 챕터를 골라 다시 읽으면 금방 올라간다."],
-    [17, "모델 엔지니어", "모델 카드와 서빙 스펙을 읽고 메모리·연산 트레이드오프를 논할 수 있는 수준이다."],
-    [22, "LLM 아키텍트!", "내적에서 서빙까지 꿰뚫고 있다. 이제 실제 논문과 오픈 모델 코드를 읽어 볼 차례다."],
+    [0, "AI 입문자", "이제 막 출발선에 섰다. 0장부터 차근차근 시뮬레이터를 만져 보자."],
+    [0.4, "토큰 수집가", "기본 개념은 잡혔다. 틀린 챕터를 골라 다시 읽으면 금방 올라간다."],
+    [0.7, "모델 엔지니어", "모델 카드와 서빙 스펙을 읽고 메모리·연산 트레이드오프를 논할 수 있는 수준이다."],
+    [0.9, "LLM 아키텍트!", "내적에서 서빙까지 꿰뚫고 있다. 이제 실제 논문과 오픈 모델 코드를 읽어 볼 차례다."],
   ];
   function perChapter() {
     var m = {};
     fq.results.forEach(function (r) { (m[r.ch] = m[r.ch] || { n: 0, ok: 0 }); m[r.ch].n++; if (r.ok) m[r.ch].ok++; });
     return AB.CHAPTERS.filter(function (c) { return m[c.slug]; }).map(function (c) { return { c: c, n: m[c.slug].n, ok: m[c.slug].ok }; });
   }
-  var SHORT = { vector: "벡터·행렬", neuron: "뉴런·신경망", training: "학습", embedding: "토큰·임베딩", attention: "어텐션", transformer: "Transformer", llm: "LLM", generation: "생성·디코딩", quantization: "양자화", rag: "RAG", agent: "추론·에이전트", design: "서빙 설계" };
+  var SHORT = { ml: "ML 기초", prompt: "프롬프트", aisystem: "AI 시스템 설계", multimodal: "멀티모달·최신", practice: "실전 역량", vector: "벡터·행렬", neuron: "뉴런·신경망", training: "학습", embedding: "토큰·임베딩", attention: "어텐션", transformer: "Transformer", llm: "LLM", generation: "생성·디코딩", quantization: "양자화", rag: "RAG", agent: "추론·에이전트", design: "서빙 설계" };
   function drawResult(ctx, w, h) {
     var P = AB.palette(), rows = perChapter();
     var left = Math.min(150, Math.max(92, w * 0.32)), right = 46, top = 12, rh = (h - top - 8) / Math.max(1, rows.length);
@@ -567,7 +568,7 @@ https://creativecommons.org/licenses/by/4.0/
     fq.el("fq-fill").style.width = "100%";
     fq.el("fq-count").textContent = "완료";
     var s = fq.score, rank = RANKS[0];
-    RANKS.forEach(function (r) { if (s >= r[0]) rank = r; });
+    RANKS.forEach(function (r) { if (s >= r[0] * QUIZ.length) rank = r; });
     fq.el("fq-title").textContent = rank[1];
     fq.el("fq-big").innerHTML = s + "<small> / " + QUIZ.length + "</small>";
     fq.el("fq-msg").textContent = "정답률 " + Math.round((s / QUIZ.length) * 100) + " % · " + rank[2];
@@ -580,6 +581,7 @@ https://creativecommons.org/licenses/by/4.0/
     else fq.cv.resize();
     fq.el("fq-result").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
+  var tot = document.getElementById("fq-total"); if (tot) tot.textContent = QUIZ.length;
   startQuiz(false);
 })();
 </script>

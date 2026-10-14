@@ -14,7 +14,7 @@ https://creativecommons.org/licenses/by/4.0/
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>AIBook · 신경망에서 LLM까지</title>
-<meta name="description" content="벡터 하나에서 대규모 언어 모델까지 — 공학도를 위한 인터랙티브 AI 교과서. 임베딩 공간을 직접 돌리고, 어텐션 행렬을 손으로 편집하며 신경망·Transformer·LLM·양자화·RAG를 배운다.">
+<meta name="description" content="벡터 하나에서 대규모 언어 모델까지 — 공학도를 위한 인터랙티브 AI 교과서. 임베딩 공간을 직접 돌리고, 어텐션 행렬을 손으로 편집하며 머신러닝 기초부터 신경망·Transformer·LLM·양자화·RAG·프롬프트·에이전트 시스템·실전 검증까지 배운다.">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/common.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
@@ -55,13 +55,14 @@ https://creativecommons.org/licenses/by/4.0/
     <div>
       <div class="eyebrow">Interactive AI Textbook</div>
       <h1>벡터 하나에서<br><span class="grad">대규모 언어 모델까지</span></h1>
-      <p>ChatGPT가 문장을 이어 쓰는 원리는 생각보다 단순한 연산의 반복입니다. 숫자 목록(벡터)이 의미를 담고, 내적이 관계를 재고, 소프트맥스가 주의를 나눕니다. 임베딩 공간을 직접 돌려 보고, 어텐션 행렬을 손으로 고쳐 보고, 브라우저 안에서 작은 신경망을 학습시키며 Transformer와 LLM을 바닥부터 이해하는 교과서입니다. MoE·하이브리드 어텐션·FP4·추론 모델·에이전트까지, 2026년 지금의 모델이 실제로 어떻게 만들어지는지도 다룹니다.</p>
+      <p>ChatGPT가 문장을 이어 쓰는 원리는 생각보다 단순한 연산의 반복입니다. 숫자 목록(벡터)이 의미를 담고, 내적이 관계를 재고, 소프트맥스가 주의를 나눕니다. 임베딩 공간을 직접 돌려 보고, 어텐션 행렬을 손으로 고쳐 보고, 브라우저 안에서 작은 신경망을 학습시키며 Transformer와 LLM을 바닥부터 이해하는 교과서입니다. MoE·하이브리드 어텐션·FP4·추론 모델·에이전트까지, 2026년 지금의 모델이 실제로 어떻게 만들어지는지도 다룹니다. 머신러닝 기초와 평가 지표에서 출발해 프롬프트 엔지니어링, RAG·에이전트·MCP 시스템 설계, 멀티모달, 결과 검증과 보안 같은 실전 활용 역량까지 한 권으로 익힙니다.</p>
       <div class="cta">
-        <a class="primary" href="chapters/vector.html">1장부터 시작하기 →</a>
+        <a class="primary" href="chapters/ml.html">0장부터 시작하기 →</a>
+        <a class="ghost" href="chapters/glossary.html#curriculum">커리큘럼 맵 보기</a>
         <a class="ghost" href="chapters/attention.html">어텐션 행렬 만져 보기</a>
       </div>
       <div class="hero-badges">
-        <span>13개 챕터</span><span>100개가 넘는 시뮬레이터</span><span>2026년 최신 동향 반영</span><span>브라우저 속 실제 계산</span><span>공대 학부 수준</span>
+        <span>18개 챕터</span><span>120여 개 학습 개념</span><span>100개가 넘는 시뮬레이터</span><span>2026년 최신 동향 반영</span><span>브라우저 속 실제 계산</span><span>공대 학부 수준</span>
       </div>
     </div>
     <div class="hero-3d" id="hero3d"><span class="hint">드래그해서 돌려보세요 · 의미가 비슷한 단어끼리 모이고, 문장의 토큰들이 서로 주의를 기울입니다</span></div>
@@ -205,12 +206,13 @@ https://creativecommons.org/licenses/by/4.0/
   <h2>추천 학습 경로</h2>
   <p class="sub">배경과 목적에 따라 이렇게 읽어 보세요.</p>
   <div class="paths">
-    <div class="path"><h3>입문 · 전체 그림</h3><p>AI가 처음이라면. 벡터에서 출발해 LLM이 글을 쓰는 원리까지 한 줄로.</p><div class="steps"><a href="chapters/vector.html">01</a><a href="chapters/neuron.html">02</a><a href="chapters/embedding.html">04</a><a href="chapters/attention.html">05</a><a href="chapters/generation.html">08</a></div></div>
+    <div class="path"><h3>AI 기초 역량 · 시험 대비</h3><p>AI 활용 능력을 체계적으로 갖추려면. ML 기초와 지표 → LLM 원리 → 프롬프트 → RAG·에이전트 → 실전 검증, 마지막에 커리큘럼 맵으로 점검.</p><div class="steps"><a href="chapters/ml.html">00</a><a href="chapters/embedding.html">04</a><a href="chapters/llm.html">07</a><a href="chapters/generation.html">08</a><a href="chapters/prompt.html">13</a><a href="chapters/rag.html">10</a><a href="chapters/aisystem.html">14</a><a href="chapters/multimodal.html">15</a><a href="chapters/practice.html">16</a><a href="chapters/glossary.html#curriculum">17</a></div></div>
+    <div class="path"><h3>입문 · 전체 그림</h3><p>AI가 처음이라면. 학습의 기본 개념에서 출발해 LLM이 글을 쓰는 원리까지 한 줄로.</p><div class="steps"><a href="chapters/ml.html">00</a><a href="chapters/vector.html">01</a><a href="chapters/neuron.html">02</a><a href="chapters/embedding.html">04</a><a href="chapters/attention.html">05</a><a href="chapters/generation.html">08</a></div></div>
     <div class="path"><h3>Transformer 핵심만</h3><p>신경망 기초는 안다면. 임베딩·어텐션·블록 구조에 집중.</p><div class="steps"><a href="chapters/embedding.html">04</a><a href="chapters/attention.html">05</a><a href="chapters/transformer.html">06</a><a href="chapters/llm.html">07</a></div></div>
     <div class="path"><h3>ML 엔지니어 · 학습</h3><p>모델을 직접 학습시키려면. 최적화(Muon), 스케일링, 정렬(RLHF·DPO), 추론 RL(GRPO).</p><div class="steps"><a href="chapters/neuron.html">02</a><a href="chapters/training.html">03</a><a href="chapters/transformer.html">06</a><a href="chapters/llm.html">07</a><a href="chapters/agent.html">11</a></div></div>
     <div class="path"><h3>추론 · 하드웨어</h3><p>LLM을 빠르고 싸게 돌리려면. KV 캐시, 양자화, 루프라인, 배칭.</p><div class="steps"><a href="chapters/transformer.html">06</a><a href="chapters/generation.html">08</a><a href="chapters/quantization.html">09</a><a href="chapters/design.html">12</a></div></div>
-    <div class="path"><h3>AI 애플리케이션 · 에이전트</h3><p>LLM으로 서비스를 만들려면. 임베딩 검색, 디코딩 설정, RAG, 도구를 쓰는 에이전트.</p><div class="steps"><a href="chapters/embedding.html">04</a><a href="chapters/generation.html">08</a><a href="chapters/rag.html">10</a><a href="chapters/agent.html">11</a><a href="chapters/design.html">12</a></div></div>
-    <div class="path"><h3>2026 최신 동향만</h3><p>기초는 안다면. MoE·하이브리드 어텐션·FP4·추론 모델·분리 서빙.</p><div class="steps"><a href="chapters/attention.html">05</a><a href="chapters/transformer.html">06</a><a href="chapters/quantization.html">09</a><a href="chapters/agent.html">11</a><a href="chapters/design.html">12</a></div></div>
+    <div class="path"><h3>AI 애플리케이션 · 에이전트</h3><p>LLM으로 서비스를 만들려면. 프롬프트, RAG, 도구를 쓰는 에이전트, 가드레일과 관측, 검증과 비용 설계.</p><div class="steps"><a href="chapters/generation.html">08</a><a href="chapters/prompt.html">13</a><a href="chapters/rag.html">10</a><a href="chapters/agent.html">11</a><a href="chapters/aisystem.html">14</a><a href="chapters/practice.html">16</a><a href="chapters/design.html">12</a></div></div>
+    <div class="path"><h3>2026 최신 동향만</h3><p>기초는 안다면. MoE·하이브리드 어텐션·FP4·추론 모델·멀티모달·분리 서빙.</p><div class="steps"><a href="chapters/attention.html">05</a><a href="chapters/transformer.html">06</a><a href="chapters/quantization.html">09</a><a href="chapters/agent.html">11</a><a href="chapters/design.html">12</a><a href="chapters/multimodal.html">15</a></div></div>
   </div>
 </section>
 

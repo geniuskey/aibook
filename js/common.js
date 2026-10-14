@@ -13,6 +13,7 @@
   "use strict";
 
   const CHAPTERS = [
+    { slug: "ml",           num: "00", title: "머신러닝 기초",            desc: "AI·ML·DL·생성형 AI의 관계, 지도·비지도·강화학습, 데이터 분할, 과적합과 편향-분산, 누수, 교차 검증, 혼동 행렬·F1·ROC-AUC.", tags: ["기초", "sim"] },
     { slug: "vector",       num: "01", title: "벡터와 행렬",              desc: "AI의 언어는 선형대수다. 내적·코사인 유사도, 행렬 = 공간 변환, 고차원의 기묘한 직관.", tags: ["기초", "sim"] },
     { slug: "neuron",       num: "02", title: "뉴런과 신경망",            desc: "퍼셉트론에서 MLP까지. 활성화 함수가 공간을 접어 결정 경계를 만드는 과정을 직접 본다.", tags: ["기초", "sim"] },
     { slug: "training",     num: "03", title: "학습: 경사하강과 역전파",   desc: "손실 지형, 학습률, 연쇄법칙으로 흐르는 기울기, SGD·Momentum·Adam, 과적합.", tags: ["학습", "sim"] },
@@ -25,7 +26,11 @@
     { slug: "rag",          num: "10", title: "RAG: 검색 증강 생성",       desc: "청킹, 임베딩 검색, 벡터 DB와 HNSW, 리랭킹, 프롬프트 조립. 브라우저 속 미니 RAG.", tags: ["응용", "sim"] },
     { slug: "agent",        num: "11", title: "추론 모델과 에이전트",       desc: "RLVR·GRPO로 키운 생각하는 모델, 테스트타임 계산, 도구 호출 루프와 MCP, 컨텍스트 엔지니어링.", tags: ["2026", "sim"] },
     { slug: "design",       num: "12", title: "LLM 서빙 설계 플레이그라운드", desc: "모델 크기·양자화·컨텍스트·배치로 GPU 메모리와 처리량을 설계. 루프라인으로 병목을 찾는다.", tags: ["종합", "sim"] },
-    { slug: "glossary",     num: "13", title: "용어집 & 종합 퀴즈",        desc: "2026년 동향까지 핵심 용어 170여 개를 검색하고, 24문항 종합 퀴즈로 실력을 점검하자.", tags: ["정리"] },
+    { slug: "prompt",       num: "13", title: "프롬프트 엔지니어링",       desc: "제로·퓨샷, 역할·맥락·제약, 구조화 출력과 JSON Schema, 프롬프트 인젝션, 체이닝, 추론 유도, 프롬프트 평가.", tags: ["응용", "sim"] },
+    { slug: "aisystem",     num: "14", title: "AI 시스템 설계: 워크플로와 에이전트", desc: "Agent vs Workflow, Tool·Function Calling, MCP, RAG를 비교로 구분하고 메모리·HITL·가드레일·관측·재시도를 설계한다.", tags: ["응용", "sim"] },
+    { slug: "multimodal",   num: "15", title: "멀티모달과 최신 AI 기술",   desc: "VLM과 패치 토큰, ASR·TTS, 이미지 디퓨전, 오픈 웨이트 vs 클로즈드, 온디바이스 AI, AI 코딩 에이전트.", tags: ["2026", "sim"] },
+    { slug: "practice",     num: "16", title: "실전 AI 활용 역량",        desc: "요구사항·문제 정의, 과업 분해, 도구 선택, 환각 탐지·출처 검증, 오류 분석, 비용·정확도·지연 트레이드오프, 보안, AI 생성 코드 검증.", tags: ["실무", "sim"] },
+    { slug: "glossary",     num: "17", title: "용어집 · 커리큘럼 맵 · 종합 퀴즈", desc: "핵심 개념 120여 개를 영역별 커리큘럼 맵으로 점검하고, 용어를 검색하며, 종합 퀴즈로 실력을 확인하자.", tags: ["정리"] },
   ];
 
   const AB = (window.AB = {});
@@ -581,7 +586,7 @@
     const drawer = document.createElement("nav");
     drawer.className = "ab-drawer";
     drawer.innerHTML = `<h4>Chapters</h4><ul class="ab-chlist">
-      <li><a href="${href("")}" class="${curSlug ? "" : "active"}"><span class="num">00</span><span>홈 · 로드맵</span></a></li>
+      <li><a href="${href("")}" class="${curSlug ? "" : "active"}"><span class="num">⌂</span><span>홈 · 로드맵</span></a></li>
       ${CHAPTERS.map((c) => `<li><a href="${href(c.slug)}" class="${c.slug === curSlug ? "active" : ""}"><span class="num">${c.num}</span><span>${c.title}</span></a></li>`).join("")}
     </ul>`;
     const backdrop = document.createElement("div");
